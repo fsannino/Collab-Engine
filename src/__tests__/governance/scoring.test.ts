@@ -3,6 +3,7 @@ import {
   calculateScore,
   calculateZone,
   zoneColor,
+  zoneBgColor,
   zoneLabel,
 } from '../../shared/governance/scoring';
 
@@ -61,11 +62,28 @@ describe('calculateZone — derived from calculateScore', () => {
 });
 
 describe('zoneColor', () => {
-  it('returns correct hex colors for each zone', () => {
+  it('returns bright indicator hex colors', () => {
     expect(zoneColor('GREEN')).toBe('#22c55e');
     expect(zoneColor('YELLOW')).toBe('#eab308');
     expect(zoneColor('ORANGE')).toBe('#f97316');
     expect(zoneColor('RED')).toBe('#ef4444');
+  });
+});
+
+describe('zoneBgColor', () => {
+  it('returns muted background hex colors for heatmap cells', () => {
+    expect(zoneBgColor('GREEN')).toBe('#C0DD97');
+    expect(zoneBgColor('YELLOW')).toBe('#FAC775');
+    expect(zoneBgColor('ORANGE')).toBe('#EF9F27');
+    expect(zoneBgColor('RED')).toBe('#A32D2D');
+  });
+
+  it('covers all 25 heatmap cells without throwing', () => {
+    for (let sev = 1; sev <= 5; sev++) {
+      for (let prob = 1; prob <= 5; prob++) {
+        expect(() => zoneBgColor(calculateZone(sev * prob))).not.toThrow();
+      }
+    }
   });
 });
 

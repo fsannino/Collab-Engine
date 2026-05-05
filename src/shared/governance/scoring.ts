@@ -20,22 +20,34 @@ export function calculateZone(score: number): ScoreZone {
   return 'RED';
 }
 
+/** Bright indicator color — for badges, text, borders. */
 export function zoneColor(zone: ScoreZone): string {
   const colors: Record<ScoreZone, string> = {
-    GREEN: '#22c55e',
+    GREEN:  '#22c55e',
     YELLOW: '#eab308',
     ORANGE: '#f97316',
-    RED: '#ef4444',
+    RED:    '#ef4444',
+  };
+  return colors[zone];
+}
+
+/** Muted background color — for heatmap cells and row highlights. */
+export function zoneBgColor(zone: ScoreZone): string {
+  const colors: Record<ScoreZone, string> = {
+    GREEN:  '#C0DD97',
+    YELLOW: '#FAC775',
+    ORANGE: '#EF9F27',
+    RED:    '#A32D2D',
   };
   return colors[zone];
 }
 
 export function zoneLabel(zone: ScoreZone): string {
   const labels: Record<ScoreZone, string> = {
-    GREEN: 'Baixo',
+    GREEN:  'Baixo',
     YELLOW: 'Moderado',
     ORANGE: 'Alto',
-    RED: 'Crítico',
+    RED:    'Crítico',
   };
   return labels[zone];
 }
