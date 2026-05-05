@@ -36,30 +36,55 @@ export async function createImpactAction(
   const { projectId, title, description, dimension, severityScore, extentScore, mitigation, activities, areaIds } = parsed.data;
   const score = calculateScore(severityScore, extentScore);
 
-  const impact = await prisma.changeImpact.create({
-    data: {
-      tenantId: session.tenantId,
-      projectId,
-      title,
-      description,
-      dimension,
-      status: 'DRAFT',
-      severityScore,
-      extentScore,
-      score,
-      mitigation,
-      createdBy: session.userId,
-      activities: activities.length > 0 ? { create: activities } : undefined,
-      areas:      areaIds.length > 0    ? { create: areaIds.map((areaId) => ({ areaId })) } : undefined,
-      acompanhamentos: {
-        create: {
-          newStatus:  'DRAFT',
-          newScore:   score,
-          note:       'Impacto criado',
-          changedBy:  session.userId,
+  // Atomic: create impact + publish event (ADR-002 cron-based event bus)
+  const impact = await prisma.$transaction(async (tx) => {
+    const created = await tx.changeImpact.create({
+      data: {
+        tenantId: session.tenantId,
+        projectId,
+        title,
+        description,
+        dimension,
+        status: 'DRAFT',
+        severityScore,
+        extentScore,
+        score,
+        mitigation,
+        createdBy: session.userId,
+        activities: activities.length > 0 ? { create: activities } : undefined,
+        areas:      areaIds.length > 0    ? { create: areaIds.map((areaId) => ({ areaId })) } : undefined,
+        acompanhamentos: {
+          create: {
+            newStatus:  'DRAFT',
+            newScore:   score,
+            note:       'Impacto criado',
+            changedBy:  session.userId,
+          },
         },
       },
-    },
+    });
+
+    await tx.eventoIntegracao.create({
+      data: {
+        tipo:    'impact.created',
+        payload: {
+          impactId:      created.id,
+          projectId:     created.projectId,
+          tenantId:      created.tenantId,
+          title:         created.title,
+          dimension:     created.dimension,
+          score:         created.score,
+          severityScore: created.severityScore,
+          extentScore:   created.extentScore,
+          status:        created.status,
+          createdBy:     created.createdBy,
+        },
+        origem:  'COLLAB',
+        status:  'PENDENTE',
+      },
+    });
+
+    return created;
   });
 
   return { ok: true, data: impact };
