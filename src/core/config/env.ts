@@ -11,6 +11,8 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // Webhook HMAC secret — usado para validar eventos do SMR (Issue 007)
+  WEBHOOK_SECRET: z.string().min(32).optional(),
 })
 
 export const env = envSchema.parse(process.env)
