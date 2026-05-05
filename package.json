@@ -60,6 +60,9 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "packageManager": "pnpm@9.15.4",
   "lint-staged": {
     "*.{ts,tsx}": [
