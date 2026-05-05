@@ -57,19 +57,19 @@ enum PlanType {
 // ═══════════════════════════════════════════════════════════════
 
 model User {
-  id          String    @id @default(uuid())
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  email       String
-  name        String
-  passwordHash String?  // bcrypt; null se SSO externo
-  role        UserRole  @default(EMPLOYEE)
-  active      Boolean   @default(true)
-  lastLoginAt DateTime?
-  preferences Json      @default("{}")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  email        String
+  name         String
+  passwordHash String?   // bcrypt; null se SSO externo
+  role         UserRole  @default(EMPLOYEE)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  preferences  Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
 
   projectMemberships ProjectMember[]
   loginAttempts      LoginAttempt[]
@@ -108,30 +108,31 @@ model LoginAttempt {
 // ═══════════════════════════════════════════════════════════════
 
 model Project {
-  id                String         @id @default(uuid())
-  tenantId          String
-  tenant            Tenant         @relation(fields: [tenantId], references: [id])
-  name              String
-  description       String?
-  projectType       ProjectType
-  deliveryModel     DeliveryModel  @default(HYBRID)
-  methodologyStack  String[]       @default([])
-  status            ProjectStatus  @default(PLANNING)
-  complexityScore   Float?
-  startDate         DateTime?
-  targetEndDate     DateTime?
-  actualEndDate     DateTime?
+  id               String        @id @default(uuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  name             String
+  description      String?
+  projectType      ProjectType
+  deliveryModel    DeliveryModel @default(HYBRID)
+  methodologyStack String[]      @default([])
+  status           ProjectStatus @default(PLANNING)
+  complexityScore  Float?
+  startDate        DateTime?
+  targetEndDate    DateTime?
+  actualEndDate    DateTime?
 
   // Referências externas (sistemas integrados)
-  smrProjectId      String?        // ID no SMR Projetos
-  
-  settings          Json           @default("{}")
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  deletedAt         DateTime?
+  smrProjectId     String?       // ID no SMR Projetos
+
+  settings         Json          @default("{}")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
 
   members           ProjectMember[]
   changeImpacts     ChangeImpact[]
+  stakeholderLinks  ProjectStakeholder[]
 
   @@index([tenantId])
   @@index([status])
@@ -189,27 +190,77 @@ enum ProjectMemberRole {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// STAKEHOLDER (M2 — esqueleto, detalhes em sprint-3)
+// STAKEHOLDER (M2 — Sprint 3)
 // ═══════════════════════════════════════════════════════════════
 
+enum StakeholderLevel {
+  C_LEVEL
+  EXECUTIVE
+  MIDDLE_MANAGEMENT
+  OPERATIONAL
+  EXTERNAL
+}
+
+enum StakeholderPosition {
+  CHAMPION
+  SUPPORTER
+  NEUTRAL
+  RESISTOR
+  ANTAGONIST
+}
+
 model Stakeholder {
-  id         String   @id @default(uuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
-  name       String
-  email      String?
-  hrisId     String?  // ID externo no HRIS
+  id                String             @id @default(uuid())
+  tenantId          String
+  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  name              String
+  email             String?
+  hrisId            String?            // ID externo no HRIS
+  position          String?            // cargo/posição (texto livre)
+  organizationLevel StakeholderLevel?
 
-  pessoaId   String?  // FK para Pessoa (se também for cadastrada)
-  pessoa     Pessoa?  @relation(fields: [pessoaId], references: [id])
+  pessoaId          String?            // FK para Pessoa (se também for cadastrada)
+  pessoa            Pessoa?            @relation(fields: [pessoaId], references: [id])
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  deletedAt  DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
 
-  // ProjectStakeholder vem em sprint-3
+  projectLinks      ProjectStakeholder[]
 
   @@index([tenantId])
+  @@index([deletedAt])
+}
+
+model ProjectStakeholder {
+  id            String              @id @default(uuid())
+  projectId     String
+  project       Project             @relation(fields: [projectId], references: [id])
+  stakeholderId String
+  stakeholder   Stakeholder         @relation(fields: [stakeholderId], references: [id])
+
+  position      StakeholderPosition
+  influence     Int                 @db.SmallInt  // 1-5
+  interest      Int                 @db.SmallInt  // 1-5
+
+  notes             String?
+  lastContactDate   DateTime?
+
+  // ADKAR scores (0-5 por dimensão)
+  adkarA            Int?     @db.SmallInt  // Awareness
+  adkarD            Int?     @db.SmallInt  // Desire
+  adkarK            Int?     @db.SmallInt  // Knowledge
+  adkarAb           Int?     @db.SmallInt  // Ability
+  adkarR            Int?     @db.SmallInt  // Reinforcement
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([projectId, stakeholderId])
+  @@index([projectId])
+  @@index([stakeholderId])
+  @@index([position])
   @@index([deletedAt])
 }
 
@@ -228,9 +279,9 @@ model Pessoa {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
-  cargosHistorico  PessoaCargo[]
-  funcoesAtuais    PessoaFuncao[]
-  stakeholders     Stakeholder[]
+  cargosHistorico PessoaCargo[]
+  funcoesAtuais   PessoaFuncao[]
+  stakeholders    Stakeholder[]
 
   @@index([tenantId])
   @@index([email])
@@ -238,16 +289,16 @@ model Pessoa {
 }
 
 model Cargo {
-  id          String        @id @default(uuid())
-  tenantId    String
-  tenant      Tenant        @relation(fields: [tenantId], references: [id])
-  nome        String
-  nivel       String?
-  descricao   String?
-  createdAt   DateTime      @default(now())
-  deletedAt   DateTime?
+  id        String      @id @default(uuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  nome      String
+  nivel     String?
+  descricao String?
+  createdAt DateTime    @default(now())
+  deletedAt DateTime?
 
-  pessoas     PessoaCargo[]
+  pessoas PessoaCargo[]
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -268,17 +319,17 @@ model PessoaCargo {
 }
 
 model Funcao {
-  id          String              @id @default(uuid())
-  tenantId    String
-  tenant      Tenant              @relation(fields: [tenantId], references: [id])
-  nome        String
-  descricao   String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  deletedAt   DateTime?
+  id        String         @id @default(uuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  nome      String
+  descricao String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
 
-  pessoas     PessoaFuncao[]
-  processos   FuncaoProcesso[]
+  pessoas   PessoaFuncao[]
+  processos FuncaoProcesso[]
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -299,16 +350,16 @@ model PessoaFuncao {
 }
 
 model FuncaoProcesso {
-  id              String           @id @default(uuid())
+  id              String          @id @default(uuid())
   funcaoId        String
-  funcao          Funcao           @relation(fields: [funcaoId], references: [id])
-  
+  funcao          Funcao          @relation(fields: [funcaoId], references: [id])
+
   // Referência externa: processo vive no XPROC
   xprocProcessoId String
-  
-  papel           PapelNoProcesso  // RACI
+
+  papel           PapelNoProcesso // RACI
   observacao      String?
-  createdAt       DateTime         @default(now())
+  createdAt       DateTime        @default(now())
   deletedAt       DateTime?
 
   @@unique([funcaoId, xprocProcessoId])
@@ -327,16 +378,17 @@ enum PapelNoProcesso {
 // ═══════════════════════════════════════════════════════════════
 
 model Area {
-  id          String   @id @default(uuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  nome        String
-  parentId    String?  // hierarquia organizacional
-  parent      Area?    @relation("AreaHierarchy", fields: [parentId], references: [id])
-  children    Area[]   @relation("AreaHierarchy")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  id       String  @id @default(uuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  nome     String
+  parentId String? // hierarquia organizacional
+  parent   Area?   @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children Area[]  @relation("AreaHierarchy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   impactAreas ImpactArea[]
 
@@ -460,15 +512,15 @@ model ImpactAcompanhamento {
 // ═══════════════════════════════════════════════════════════════
 
 model EventoIntegracao {
-  id          String           @id @default(uuid())
-  tipo        String           // ex: "impacto.criado", "treinamento.concluido"
+  id          String        @id @default(uuid())
+  tipo        String        // ex: "impacto.criado", "treinamento.concluido"
   payload     Json
-  origem      SistemaOrigem    // SMR, XPROC, COLLAB
-  destino     SistemaOrigem?   // null = broadcast
-  status      StatusEvento     @default(PENDENTE)
-  tentativas  Int              @default(0)
+  origem      SistemaOrigem // SMR, XPROC, COLLAB
+  destino     SistemaOrigem? // null = broadcast
+  status      StatusEvento  @default(PENDENTE)
+  tentativas  Int           @default(0)
   ultimoErro  String?
-  createdAt   DateTime         @default(now())
+  createdAt   DateTime      @default(now())
   processedAt DateTime?
 
   @@index([status, createdAt])
