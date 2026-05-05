@@ -162,6 +162,24 @@ Termos específicos de Change Management que aparecem no Collab Engine:
 - **BPM** — Business Process Management
 - **IPCO** — Integrated Portfolio, Change & Operations (framework conceitual da CollabZ)
 
+## Termos não-mapeados (precisam decisão futura)
+
+> Os itens abaixo estão parcialmente definidos no glossário mas carecem de validação contra
+> os schemas reais do SMR e XPROC. Para concluir a Issue 004, forneça acesso aos schemas
+> (`prisma/schema.prisma` do SMR Projetos e do XPROC) e rode a validação.
+
+| Termo | Onde aparece | Pendência |
+|-------|--------------|-----------|
+| Status `ON_HOLD`, `CLOSING` | `ProjectStatus` (Collab) | Sem equivalente mapeado no SMR ou XPROC — decidir se SMR vai ter ou se fica sem tradução |
+| `Em Revisão` / `EmRevisao` | XPROC (glossário) | Confirmar grafia exata no schema real do XPROC |
+| `Aprovado` | XPROC (glossário) | Confirmar se existe no schema real ou é apenas conceitual |
+| `Concluído` | SMR (glossário) | Confirmar grafia exata no schema real do SMR (com ou sem acento) |
+| `Risco` | SMR (a criar) | Entidade nova a ser implementada no SMR (Sprint 2-3) — status ainda não existem |
+| `Departamento` | SMR (parcial) | Verificar se é enum ou campo livre no schema do SMR; mapear para `Area` do Collab |
+| `Responsavel` | XPROC (parcial) | Verificar estrutura real — é FK para `Usuario` ou campo textual? |
+| `Usuario` vs `User` | XPROC × Collab | Confirmar campos comuns para sincronização via webhook (ADR-005) |
+| Escala A/M/B | XPROC | Confirmar se a migração para 1-5 (Sprint 2) já está planejada no schema do XPROC ou é só no Collab |
+
 ## Manutenção deste documento
 
 Quando você (humano ou Claude Code) descobrir um termo confuso:

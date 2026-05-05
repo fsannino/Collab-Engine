@@ -166,24 +166,29 @@ export default async function DashboardPage() {
 }
 ```
 
-**Middleware** (para rotas que precisam de check antes de qualquer coisa):
+**Proxy** (para rotas que precisam de check antes de qualquer coisa):
 
-`src/middleware.ts` (na raiz de src/):
+> **Next.js 16:** o arquivo se chama `src/proxy.ts` e exporta função `proxy()`.
+> O nome `middleware.ts` / `middleware()` foi **depreciado** no Next.js 16 — usar causa
+> warning de build e será removido em versão futura.
+
+`src/proxy.ts` (na raiz de src/):
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
+const COOKIE_NAME = process.env.COOKIE_NAME ?? 'collab_session';
 
 const PUBLIC_PATHS = ['/login', '/api/auth', '/api/health'];
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (PUBLIC_PATHS.some(p => req.nextUrl.pathname.startsWith(p))) {
     return NextResponse.next();
   }
   
-  const token = req.cookies.get('collab_session')?.value;
+  const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return NextResponse.redirect(new URL('/login', req.url));
   
   try {
@@ -199,8 +204,6 @@ export const config = {
 };
 ```
 
-**Atenção:** o arquivo precisa se chamar `middleware.ts` (não `proxy.ts` como ficou no XPROC inicialmente, que causou problemas de carregamento).
-
 ## Antes de implementar
 
 1. Confirmar que `JWT_SECRET` está em `.env` com 32+ caracteres aleatórios
@@ -214,7 +217,7 @@ export const config = {
 - [ ] Cookie httpOnly + secure em prod
 - [ ] Domain configurável via env
 - [ ] getSession retorna null sem throw
-- [ ] Middleware em `middleware.ts` (nome correto!)
+- [ ] Proxy em `src/proxy.ts` exportando função `proxy()` (Next.js 16 — não `middleware.ts`)
 - [ ] Rate limit via tabela LoginAttempt
 - [ ] Logout destroi cookie
 - [ ] Tests unitários para createSession, getSession, destroySession
