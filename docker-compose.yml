@@ -1,0 +1,33 @@
+# Collab Engine — Desenvolvimento Local
+#
+# Sobe Postgres 16 para desenvolvimento. App roda no host (não em container)
+# para hot-reload eficiente. Em produção, ver Dockerfile.
+#
+# Uso:
+#   docker-compose up -d        # sobe em background
+#   docker-compose down         # para
+#   docker-compose down -v      # para e apaga dados (cuidado!)
+#   docker-compose logs -f db   # ver logs do postgres
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: collab-engine-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: collab
+      POSTGRES_PASSWORD: collab_dev_password
+      POSTGRES_DB: collab_engine
+    ports:
+      - "5432:5432"
+    volumes:
+      - collab-engine-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collab -d collab_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  collab-engine-pgdata:
+    name: collab-engine-pgdata

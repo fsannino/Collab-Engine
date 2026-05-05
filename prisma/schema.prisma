@@ -1,0 +1,379 @@
+// Collab Engine — Prisma Schema
+//
+// Schema inicial com entidades core (Tenant, User, Project, Stakeholder).
+// Módulos M1-M16 são adicionados incrementalmente nos sprints.
+//
+// Convenções:
+// - Multi-tenant via tenantId (ADR-006)
+// - Soft delete com deletedAt + deletedBy (ADR-003)
+// - Escala 5x5 nas entidades de governança (ADR-001)
+// - Cargo separado de Função (ADR-004)
+//
+// Ler skills/prisma-migrations/SKILL.md antes de modificar este arquivo.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TENANT (ADR-006)
+// ═══════════════════════════════════════════════════════════════
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  domain    String?  @unique
+  plan      PlanType @default(STARTER)
+  active    Boolean  @default(true)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  projects      Project[]
+  stakeholders  Stakeholder[]
+  cargos        Cargo[]
+  funcoes       Funcao[]
+  areas         Area[]
+
+  @@index([slug])
+}
+
+enum PlanType {
+  INTERNAL // CollabZ uso interno
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USER & AUTH
+// ═══════════════════════════════════════════════════════════════
+
+model User {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  email       String
+  name        String
+  passwordHash String?  // bcrypt; null se SSO externo
+  role        UserRole  @default(EMPLOYEE)
+  active      Boolean   @default(true)
+  lastLoginAt DateTime?
+  preferences Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  projectMemberships ProjectMember[]
+  loginAttempts      LoginAttempt[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
+enum UserRole {
+  ADMIN
+  CHANGE_MANAGER
+  PROJECT_MANAGER
+  SPONSOR
+  TEAM_LEAD
+  EMPLOYEE
+  READ_ONLY
+}
+
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  email     String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  ipAddress String?
+  userAgent String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROJECT
+// ═══════════════════════════════════════════════════════════════
+
+model Project {
+  id                String         @id @default(uuid())
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
+  name              String
+  description       String?
+  projectType       ProjectType
+  deliveryModel     DeliveryModel  @default(HYBRID)
+  methodologyStack  String[]       @default([])
+  status            ProjectStatus  @default(PLANNING)
+  complexityScore   Float?
+  startDate         DateTime?
+  targetEndDate     DateTime?
+  actualEndDate     DateTime?
+
+  // Referências externas (sistemas integrados)
+  smrProjectId      String?        // ID no SMR Projetos
+  
+  settings          Json           @default("{}")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  deletedAt         DateTime?
+
+  members           ProjectMember[]
+  // Relacionamentos com módulos (M2, M3, M5, etc.) entram em sprints futuros
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+enum ProjectType {
+  ERP_IMPLEMENTATION
+  DIGITAL_TRANSFORMATION
+  INFRASTRUCTURE
+  MERGER_ACQUISITION
+  INNOVATION
+  SOCIAL_IMPACT
+  LEAN_SIX_SIGMA
+  CULTURAL_TRANSFORMATION
+}
+
+enum DeliveryModel {
+  WATERFALL
+  AGILE
+  HYBRID
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  CLOSING
+  COMPLETED
+  ARCHIVED
+}
+
+model ProjectMember {
+  id          String            @id @default(uuid())
+  projectId   String
+  project     Project           @relation(fields: [projectId], references: [id])
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  projectRole ProjectMemberRole
+  createdAt   DateTime          @default(now())
+  deletedAt   DateTime?
+
+  @@unique([projectId, userId])
+  @@index([deletedAt])
+}
+
+enum ProjectMemberRole {
+  CHANGE_LEAD
+  CHANGE_MANAGER
+  CHANGE_AGENT
+  SPONSOR
+  TEAM_LEAD
+  STAKEHOLDER
+  OBSERVER
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STAKEHOLDER (M2 — esqueleto, detalhes em sprint-3)
+// ═══════════════════════════════════════════════════════════════
+
+model Stakeholder {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  name       String
+  email      String?
+  hrisId     String?  // ID externo no HRIS
+
+  pessoaId   String?  // FK para Pessoa (se também for cadastrada)
+  pessoa     Pessoa?  @relation(fields: [pessoaId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  // ProjectStakeholder vem em sprint-3
+
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PESSOA, CARGO, FUNÇÃO (ADR-004 — esqueleto, detalhes em sprint-4)
+// ═══════════════════════════════════════════════════════════════
+
+model Pessoa {
+  id        String   @id @default(uuid())
+  tenantId  String
+  nome      String
+  email     String?
+  cpf       String?
+  hrisId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  cargosHistorico  PessoaCargo[]
+  funcoesAtuais    PessoaFuncao[]
+  stakeholders     Stakeholder[]
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model Cargo {
+  id          String        @id @default(uuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  nome        String
+  nivel       String?
+  descricao   String?
+  createdAt   DateTime      @default(now())
+  deletedAt   DateTime?
+
+  pessoas     PessoaCargo[]
+
+  @@unique([tenantId, nome])
+  @@index([deletedAt])
+}
+
+model PessoaCargo {
+  id         String    @id @default(uuid())
+  pessoaId   String
+  pessoa     Pessoa    @relation(fields: [pessoaId], references: [id])
+  cargoId    String
+  cargo      Cargo     @relation(fields: [cargoId], references: [id])
+  dataInicio DateTime
+  dataFim    DateTime? // null = vigente
+  createdAt  DateTime  @default(now())
+
+  @@index([pessoaId, dataFim])
+  @@index([cargoId])
+}
+
+model Funcao {
+  id          String              @id @default(uuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id])
+  nome        String
+  descricao   String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  deletedAt   DateTime?
+
+  pessoas     PessoaFuncao[]
+  processos   FuncaoProcesso[]
+
+  @@unique([tenantId, nome])
+  @@index([deletedAt])
+}
+
+model PessoaFuncao {
+  id         String    @id @default(uuid())
+  pessoaId   String
+  pessoa     Pessoa    @relation(fields: [pessoaId], references: [id])
+  funcaoId   String
+  funcao     Funcao    @relation(fields: [funcaoId], references: [id])
+  dataInicio DateTime  @default(now())
+  dataFim    DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([pessoaId, funcaoId, dataInicio])
+  @@index([funcaoId, dataFim])
+}
+
+model FuncaoProcesso {
+  id              String           @id @default(uuid())
+  funcaoId        String
+  funcao          Funcao           @relation(fields: [funcaoId], references: [id])
+  
+  // Referência externa: processo vive no XPROC
+  xprocProcessoId String
+  
+  papel           PapelNoProcesso  // RACI
+  observacao      String?
+  createdAt       DateTime         @default(now())
+  deletedAt       DateTime?
+
+  @@unique([funcaoId, xprocProcessoId])
+  @@index([deletedAt])
+}
+
+enum PapelNoProcesso {
+  RESPONSIBLE
+  ACCOUNTABLE
+  CONSULTED
+  INFORMED
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AREA (estrutura organizacional — esqueleto)
+// ═══════════════════════════════════════════════════════════════
+
+model Area {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  nome        String
+  parentId    String?  // hierarquia organizacional
+  parent      Area?    @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children    Area[]   @relation("AreaHierarchy")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([tenantId, nome])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENTO INTEGRACAO (cron-based event bus — ADR-002)
+// ═══════════════════════════════════════════════════════════════
+
+model EventoIntegracao {
+  id          String           @id @default(uuid())
+  tipo        String           // ex: "impacto.criado", "treinamento.concluido"
+  payload     Json
+  origem      SistemaOrigem    // SMR, XPROC, COLLAB
+  destino     SistemaOrigem?   // null = broadcast
+  status      StatusEvento     @default(PENDENTE)
+  tentativas  Int              @default(0)
+  ultimoErro  String?
+  createdAt   DateTime         @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([tipo, createdAt])
+}
+
+enum SistemaOrigem {
+  SMR
+  XPROC
+  COLLAB
+}
+
+enum StatusEvento {
+  PENDENTE
+  PROCESSANDO
+  PROCESSADO
+  FALHADO
+  DESCARTADO
+}

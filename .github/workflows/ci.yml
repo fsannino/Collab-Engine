@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: collab
+          POSTGRES_PASSWORD: collab_dev_password
+          POSTGRES_DB: collab_engine_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma client
+        run: pnpm prisma generate
+      
+      - name: Run migrations
+        run: pnpm prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+          DIRECT_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+      
+      - name: Lint
+        run: pnpm lint
+      
+      - name: Format check
+        run: pnpm format:check
+      
+      - name: Typecheck
+        run: pnpm typecheck
+      
+      - name: Test
+        run: pnpm test
+        env:
+          DATABASE_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+          DIRECT_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+          JWT_SECRET: test-secret-with-at-least-32-characters-here
+          COOKIE_DOMAIN: ""
+          COOKIE_NAME: collab_session_test
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NODE_ENV: test
+      
+      - name: Build
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+          DIRECT_URL: postgresql://collab:collab_dev_password@localhost:5432/collab_engine_test
+          JWT_SECRET: test-secret-with-at-least-32-characters-here
+          COOKIE_DOMAIN: ""
+          COOKIE_NAME: collab_session_test
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
