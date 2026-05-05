@@ -40,6 +40,7 @@ model Tenant {
   cargos        Cargo[]
   funcoes       Funcao[]
   areas         Area[]
+  changeImpacts ChangeImpact[]
 
   @@index([slug])
 }
@@ -130,7 +131,7 @@ model Project {
   deletedAt         DateTime?
 
   members           ProjectMember[]
-  // Relacionamentos com módulos (M2, M3, M5, etc.) entram em sprints futuros
+  changeImpacts     ChangeImpact[]
 
   @@index([tenantId])
   @@index([status])
@@ -337,8 +338,121 @@ model Area {
   updatedAt   DateTime @updatedAt
   deletedAt   DateTime?
 
+  impactAreas ImpactArea[]
+
   @@unique([tenantId, nome])
   @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE IMPACT (M3 — Gestão de Mudança Organizacional, Sprint 2)
+// ═══════════════════════════════════════════════════════════════
+
+enum ImpactDimension {
+  PROCESS
+  PEOPLE
+  TECHNOLOGY
+  STRUCTURE
+  CULTURE
+  POLICY
+  METRICS
+}
+
+enum ImpactStatus {
+  DRAFT
+  ACTIVE
+  MITIGATING
+  RESOLVED
+  CLOSED
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model ChangeImpact {
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id])
+  title         String
+  description   String?
+  dimension     ImpactDimension
+  status        ImpactStatus    @default(DRAFT)
+
+  // 5x5 scoring: severityScore × extentScore = score (ADR-001)
+  severityScore Int             // 1-5: quão grave é o impacto
+  extentScore   Int             // 1-5: quantas pessoas/áreas afeta
+  score         Int             // computed: severityScore × extentScore
+
+  mitigation    String?
+
+  createdBy     String          // userId
+  updatedBy     String?         // userId
+  deletedAt     DateTime?
+  deletedBy     String?         // userId
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  activities      ImpactActivity[]
+  areas           ImpactArea[]
+  acompanhamentos ImpactAcompanhamento[]
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([dimension])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ImpactActivity {
+  id          String         @id @default(uuid())
+  impactId    String
+  impact      ChangeImpact   @relation(fields: [impactId], references: [id])
+  title       String
+  description String?
+  status      ActivityStatus @default(PENDING)
+  dueDate     DateTime?
+  assignedTo  String?        // userId
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  @@index([impactId])
+  @@index([deletedAt])
+}
+
+model ImpactArea {
+  id        String       @id @default(uuid())
+  impactId  String
+  impact    ChangeImpact @relation(fields: [impactId], references: [id])
+  areaId    String
+  area      Area         @relation(fields: [areaId], references: [id])
+  note      String?
+  createdAt DateTime     @default(now())
+  deletedAt DateTime?
+
+  @@unique([impactId, areaId])
+  @@index([deletedAt])
+}
+
+model ImpactAcompanhamento {
+  id             String        @id @default(uuid())
+  impactId       String
+  impact         ChangeImpact  @relation(fields: [impactId], references: [id])
+  previousStatus ImpactStatus?
+  newStatus      ImpactStatus
+  previousScore  Int?
+  newScore       Int
+  note           String?
+  changedBy      String        // userId
+  changedAt      DateTime      @default(now())
+
+  @@index([impactId, changedAt])
 }
 
 // ═══════════════════════════════════════════════════════════════
