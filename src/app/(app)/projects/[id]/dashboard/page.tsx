@@ -10,18 +10,18 @@ import { KpiCard } from '@/shared/components/KpiCard';
 type Params = Promise<{ id: string }>;
 
 const POSITION_LABEL: Record<string, string> = {
-  CHAMPION: 'Campeão',
-  SUPPORTER: 'Apoiador',
-  NEUTRAL: 'Neutro',
-  RESISTOR: 'Resistente',
+  CHAMPION:   'Campeão',
+  SUPPORTER:  'Apoiador',
+  NEUTRAL:    'Neutro',
+  RESISTOR:   'Resistente',
   ANTAGONIST: 'Antagonista',
 };
 
 const POSITION_COLOR: Record<string, string> = {
-  CHAMPION: '#22c55e',
-  SUPPORTER: '#84cc16',
-  NEUTRAL: '#6b7280',
-  RESISTOR: '#f97316',
+  CHAMPION:   '#22c55e',
+  SUPPORTER:  '#84cc16',
+  NEUTRAL:    '#6b7280',
+  RESISTOR:   '#f97316',
   ANTAGONIST: '#ef4444',
 };
 
@@ -68,22 +68,22 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
     }),
     prisma.impactAcompanhamento.findMany({
       where: { impact: { projectId, tenantId: session.tenantId, deletedAt: null } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { changedAt: 'desc' },
       take: 6,
       select: {
         id: true,
-        createdAt: true,
-        statusBefore: true,
-        statusAfter: true,
-        scoreBefore: true,
-        scoreAfter: true,
-        notes: true,
+        changedAt: true,
+        previousStatus: true,
+        newStatus: true,
+        previousScore: true,
+        newScore: true,
+        note: true,
         impact: { select: { id: true, title: true } },
       },
     }),
   ]);
 
-  // zone KPIs
+  // Zone KPIs
   const zoneCounts = { GREEN: 0, YELLOW: 0, ORANGE: 0, RED: 0 };
   let closedCount = 0;
   for (const imp of allImpacts) {
@@ -92,14 +92,14 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
   }
   const activeImpacts = allImpacts.length - closedCount;
 
-  // heatmap cells (severity=X, extentScore=Y treated as probability axis)
+  // Heatmap cells (severityScore=X, extentScore=Y)
   const heatmapCells: HeatmapCellData[] = impactHeatmapRaw.map(r => ({
     severity: r.severityScore,
     probability: r.extentScore,
     count: r._count.id,
   }));
 
-  // stakeholder KPIs
+  // Stakeholder KPIs + matrix points
   const positionCounts: Record<string, number> = {};
   const stakeholderPoints: StakeholderPoint[] = [];
   for (const s of allStakeholderLinks) {
@@ -128,36 +128,11 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
             value={activeImpacts}
             href={`/projects/${projectId}/impacts`}
           />
-          <KpiCard
-            label={zoneLabel('GREEN')}
-            value={zoneCounts.GREEN}
-            borderColor={zoneBgColor('GREEN')}
-            href={`/projects/${projectId}/impacts`}
-          />
-          <KpiCard
-            label={zoneLabel('YELLOW')}
-            value={zoneCounts.YELLOW}
-            borderColor={zoneBgColor('YELLOW')}
-            href={`/projects/${projectId}/impacts`}
-          />
-          <KpiCard
-            label={zoneLabel('ORANGE')}
-            value={zoneCounts.ORANGE}
-            borderColor={zoneBgColor('ORANGE')}
-            href={`/projects/${projectId}/impacts`}
-          />
-          <KpiCard
-            label={zoneLabel('RED')}
-            value={zoneCounts.RED}
-            borderColor={zoneBgColor('RED')}
-            href={`/projects/${projectId}/impacts`}
-          />
-          <KpiCard
-            label="Encerrados"
-            value={closedCount}
-            borderColor="#6b7280"
-            href={`/projects/${projectId}/impacts`}
-          />
+          <KpiCard label={zoneLabel('GREEN')}  value={zoneCounts.GREEN}  borderColor={zoneBgColor('GREEN')}  href={`/projects/${projectId}/impacts`} />
+          <KpiCard label={zoneLabel('YELLOW')} value={zoneCounts.YELLOW} borderColor={zoneBgColor('YELLOW')} href={`/projects/${projectId}/impacts`} />
+          <KpiCard label={zoneLabel('ORANGE')} value={zoneCounts.ORANGE} borderColor={zoneBgColor('ORANGE')} href={`/projects/${projectId}/impacts`} />
+          <KpiCard label={zoneLabel('RED')}    value={zoneCounts.RED}    borderColor={zoneBgColor('RED')}    href={`/projects/${projectId}/impacts`} />
+          <KpiCard label="Encerrados" value={closedCount} borderColor="#6b7280" href={`/projects/${projectId}/impacts`} />
         </div>
       </section>
 
@@ -182,9 +157,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Mapa de Calor — Impactos</h2>
-            <Link href={`/projects/${projectId}/impacts/heatmap`} className="text-sm text-primary hover:underline">
-              Ver completo
-            </Link>
+            <Link href={`/projects/${projectId}/impacts/heatmap`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {heatmapCells.length > 0 ? (
             <HeatmapMatrix cells={heatmapCells} entityType="impact" size="sm" />
@@ -198,9 +171,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Matriz de Partes Interessadas</h2>
-            <Link href={`/projects/${projectId}/stakeholders/matrix`} className="text-sm text-primary hover:underline">
-              Ver completo
-            </Link>
+            <Link href={`/projects/${projectId}/stakeholders/matrix`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {stakeholderPoints.length > 0 ? (
             <StakeholderMatrix points={stakeholderPoints} projectId={projectId} />
@@ -214,9 +185,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
 
       {/* Recent acompanhamentos */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Últimos Acompanhamentos</h2>
-        </div>
+        <h2 className="text-lg font-semibold mb-3">Últimos Acompanhamentos</h2>
         {recentAcompanhamentos.length === 0 ? (
           <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
             Nenhum acompanhamento registrado ainda.
@@ -233,18 +202,18 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
                     {a.impact.title}
                   </Link>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(a.createdAt).toLocaleDateString('pt-BR')}
+                    {new Date(a.changedAt).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
-                {a.notes && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">{a.notes}</p>
+                {a.note && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">{a.note}</p>
                 )}
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                  {a.statusBefore !== a.statusAfter && (
-                    <span>{a.statusBefore} → {a.statusAfter}</span>
+                  {a.previousStatus && a.previousStatus !== a.newStatus && (
+                    <span>{a.previousStatus} → {a.newStatus}</span>
                   )}
-                  {a.scoreBefore !== a.scoreAfter && (
-                    <span>Score: {a.scoreBefore} → {a.scoreAfter}</span>
+                  {a.previousScore !== null && a.previousScore !== a.newScore && (
+                    <span>Score: {a.previousScore} → {a.newScore}</span>
                   )}
                 </div>
               </div>

@@ -14,6 +14,7 @@ import {
   addAcompanhamentoSchema,
   closeImpactSchema,
 } from './impact.schema';
+import { linkSmrActivitySchema } from './smr-webhook.schema';
 
 async function getImpactForTenant(impactId: string, tenantId: string) {
   return prisma.changeImpact.findFirst({
@@ -169,6 +170,37 @@ export async function updateActivityStatusAction(
   return { ok: true, data: { id: activityId } };
 }
 
+export async function linkSmrActivityAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = linkSmrActivitySchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: 'Dados inválidos', issues: parsed.error.flatten().fieldErrors };
+  }
+
+  const { activityId, smrActivityId } = parsed.data;
+
+  const activity = await prisma.impactActivity.findFirst({
+    where: {
+      id: activityId,
+      deletedAt: null,
+      impact: { tenantId: session.tenantId, deletedAt: null },
+    },
+    select: { id: true },
+  });
+  if (!activity) return { ok: false, error: 'Atividade não encontrada' };
+
+  await prisma.impactActivity.update({
+    where: { id: activityId },
+    data: { smrActivityId },
+  });
+
+  return { ok: true, data: { id: activityId } };
+}
+
 export async function linkAreaToImpactAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
@@ -184,7 +216,6 @@ export async function linkAreaToImpactAction(
   const impact = await getImpactForTenant(impactId, session.tenantId);
   if (!impact) return { ok: false, error: 'Impacto não encontrado' };
 
-  // Restore if soft-deleted, otherwise create
   const existing = await prisma.impactArea.findUnique({
     where: { impactId_areaId: { impactId, areaId } },
   });

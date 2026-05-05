@@ -462,17 +462,18 @@ model ChangeImpact {
 }
 
 model ImpactActivity {
-  id          String         @id @default(uuid())
-  impactId    String
-  impact      ChangeImpact   @relation(fields: [impactId], references: [id])
-  title       String
-  description String?
-  status      ActivityStatus @default(PENDING)
-  dueDate     DateTime?
-  assignedTo  String?        // userId
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  deletedAt   DateTime?
+  id            String         @id @default(uuid())
+  impactId      String
+  impact        ChangeImpact   @relation(fields: [impactId], references: [id])
+  title         String
+  description   String?
+  status        ActivityStatus @default(PENDING)
+  dueDate       DateTime?
+  assignedTo    String?        // userId
+  smrActivityId String?        @unique // ID no SMR Projetos (Issue 017)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
 
   @@index([impactId])
   @@index([deletedAt])
@@ -505,6 +506,25 @@ model ImpactAcompanhamento {
   changedAt      DateTime      @default(now())
 
   @@index([impactId, changedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SMR WEBHOOK LOG (Issue 017 — integração SMR Projetos)
+// ═══════════════════════════════════════════════════════════════
+
+model SmrWebhookLog {
+  id          String    @id @default(uuid())
+  eventId     String    @unique // SMR-generated event ID (idempotency key)
+  activityId  String?           // ImpactActivity.id resolvido
+  payload     Json              // payload recebido
+  status      String    @default("RECEIVED") // RECEIVED/PROCESSING/PROCESSED/FAILED/IGNORED
+  error       String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════
