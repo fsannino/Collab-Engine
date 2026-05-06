@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/shared/auth/session';
 import { prisma } from '@/shared/lib/prisma';
 import { calculateZone, zoneBgColor, zoneLabel } from '@/shared/governance/scoring';
@@ -28,6 +28,7 @@ const POSITION_COLOR: Record<string, string> = {
 export default async function ProjectDashboardPage({ params }: { params: Params }) {
   const { id: projectId } = await params;
   const session = await getSession();
+  if (!session) redirect('/login');
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, tenantId: session.tenantId, deletedAt: null },
