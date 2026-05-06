@@ -1,7 +1,16 @@
 ﻿import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
 import { cookies } from 'next/headers'
 import { env } from '@/core/config/env'
-import type { UserRole } from '@prisma/client'
+
+type UserRole =
+  | 'ADMIN'
+  | 'CHANGE_MANAGER'
+  | 'PROJECT_MANAGER'
+  | 'SPONSOR'
+  | 'TEAM_LEAD'
+  | 'EMPLOYEE'
+  | 'READ_ONLY'
+
 
 export type SessionPayload = {
   userId: string
