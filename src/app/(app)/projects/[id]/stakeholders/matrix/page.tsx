@@ -16,18 +16,18 @@ export default async function StakeholderMatrixPage({ params }: Props) {
     select: { id: true, influence: true, interest: true, stakeholder: { select: { name: true } } },
   });
 
-  const points = rows.map((ps: (typeof rows)[number]) => ({ id: ps.id, name: ps.stakeholder.name, influence: ps.influence, interest: ps.interest }));
+  const points = rows.map((ps: { id: string; influence: number; interest: number; stakeholder: { name: string } }) => ({ id: ps.id, name: ps.stakeholder.name, influence: ps.influence, interest: ps.interest }));
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Matriz de Stakeholders</h1>
-        <Link href={`/projects/${projectId}/stakeholders`} className="text-sm text-gray-500 hover:underline">← Lista</Link>
+        <Link href={`/projects/${projectId}/stakeholders`} className="text-sm text-gray-500 hover:underline">â† Lista</Link>
       </div>
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <StakeholderMatrix projectId={projectId} stakeholders={points} size="md" />
       </div>
-      <p className="mt-4 text-xs text-gray-400">Clique em uma célula para filtrar stakeholders por influência e interesse.</p>
+      <p className="mt-4 text-xs text-gray-400">Clique em uma cÃ©lula para filtrar stakeholders por influÃªncia e interesse.</p>
     </div>
   );
 }

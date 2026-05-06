@@ -1,325 +1,211 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import Link from 'next/link';
-import { csvRowSchema } from '@/modules/stakeholder/csv-import.schema';
+import { useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { csvRowSchema, STAKEHOLDER_POSITIONS, STAKEHOLDER_LEVELS, type CsvRow } from '@/modules/stakeholder/csv-import.schema';
 import { importStakeholdersFromCsvAction } from '@/modules/stakeholder/csv-import.actions';
 
-// ── CSV parser ────────────────────────────────────────────────────────────────
+type ParsedRow = { raw: Record<string, string>; parsed?: CsvRow; errors?: string[] };
 
-function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return { headers: [], rows: [] };
-  const firstLine = lines[0];
-  if (!firstLine) return { headers: [], rows: [] };
-  const delim = firstLine.includes(';') ? ';' : ',';
-  const clean = (s: string) => s.trim().replace(/^"|"$/g, '');
-  const headers = firstLine.split(delim).map(clean);
-  const rows = lines.slice(1).map(line => {
-    const vals = line.split(delim).map(clean);
-    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
+function parseCsv(text: string): Record<string, string>[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0]!.split(',').map((h) => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  return lines.slice(1).map((line) => {
+    const values = line.split(',').map((v) => v.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']));
   });
-  return { headers, rows };
 }
 
-// ── Field definitions ─────────────────────────────────────────────────────────
-
-const FIELDS = [
-  { key: 'name',              label: 'Nome',                 required: true },
-  { key: 'position',          label: 'Posição',              required: true,  hint: 'CHAMPION / SUPPORTER / NEUTRAL / RESISTOR / ANTAGONIST' },
-  { key: 'influence',         label: 'Influência (1-5)',     required: true },
-  { key: 'interest',          label: 'Interesse (1-5)',      required: true },
-  { key: 'email',             label: 'E-mail',               required: false },
-  { key: 'organizationLevel', label: 'Nível Organizacional', required: false, hint: 'C_LEVEL / EXECUTIVE / MIDDLE_MANAGEMENT / OPERATIONAL / EXTERNAL' },
-  { key: 'notes',             label: 'Observações',         required: false },
-] as const;
-
-type FieldKey = typeof FIELDS[number]['key'];
-
-// ── Auto-detection ────────────────────────────────────────────────────────────
-
-const DETECT_ALIASES: Record<FieldKey, string[]> = {
-  name:              ['nome', 'name', 'stakeholder', 'colaborador'],
-  email:             ['email', 'e-mail'],
-  position:          ['posicao', 'posicao', 'position', 'tipo', 'perfil'],
-  influence:         ['influencia', 'influencia', 'influence', 'poder'],
-  interest:          ['interesse', 'interest'],
-  organizationLevel: ['nivel', 'nivel', 'level', 'organizationlevel'],
-  notes:             ['observacoes', 'observacoes', 'notas', 'notes', 'descricao'],
+const COLUMN_MAP: Record<string, keyof CsvRow> = {
+  nome: 'name', name: 'name',
+  email: 'email',
+  posicao: 'position', posição: 'position', position: 'position',
+  influencia: 'influence', influência: 'influence', influence: 'influence',
+  interesse: 'interest', interest: 'interest',
+  nivel_organizacional: 'organizationLevel', organization_level: 'organizationLevel', nivel: 'organizationLevel',
+  notas: 'notes', notes: 'notes', observacoes: 'notes', observações: 'notes',
 };
 
-function autoDetect(headers: string[]): Partial<Record<FieldKey, string>> {
-  const norm = (s: string) =>
-    s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const result: Partial<Record<FieldKey, string>> = {};
-  for (const [field, aliases] of Object.entries(DETECT_ALIASES) as [FieldKey, string[]][]) {
-    const match = headers.find(h => aliases.includes(norm(h)));
-    if (match) result[field] = match;
+function normalizeRow(raw: Record<string, string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const mapped = COLUMN_MAP[k];
+    if (mapped) out[mapped] = v;
   }
-  return result;
+  return out;
 }
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type ValidatedRow = {
-  index: number;
-  data: Record<string, unknown> | null;
-  firstError: string;
-};
-
-type Step = 'upload' | 'map' | 'done';
-
-// ── Wizard ────────────────────────────────────────────────────────────────────
 
 export function ImportWizard({ projectId }: { projectId: string }) {
-  const [step, setStep]         = useState<Step>('upload');
-  const [headers, setHeaders]   = useState<string[]>([]);
-  const [rawRows, setRawRows]   = useState<Record<string, string>[]>([]);
-  const [mapping, setMapping]   = useState<Partial<Record<FieldKey, string>>>({});
-  const [validated, setValidated] = useState<ValidatedRow[] | null>(null);
-  const [result, setResult]     = useState<{ imported: number; skipped: number } | null>(null);
-  const [serverError, setServerError] = useState('');
-  const [isPending, startTransition]  = useTransition();
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload');
+  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function handleFile(file: File) {
     const reader = new FileReader();
-    reader.onload = ev => {
-      const { headers: h, rows } = parseCsv(ev.target?.result as string);
-      setHeaders(h);
-      setRawRows(rows);
-      setMapping(autoDetect(h));
-      setValidated(null);
-      setStep('map');
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rawRows = parseCsv(text);
+      const parsed: ParsedRow[] = rawRows.map((raw) => {
+        const normalized = normalizeRow(raw);
+        const result = csvRowSchema.safeParse(normalized);
+        if (result.success) return { raw, parsed: result.data };
+        const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+        return { raw, errors };
+      });
+      setRows(parsed);
+      setStep('preview');
     };
-    reader.readAsText(file, 'utf-8');
+    reader.readAsText(file);
   }
 
-  function handleValidate() {
-    const rows: ValidatedRow[] = rawRows.map((raw, index) => {
-      const mapped: Record<string, string> = {};
-      for (const [field, col] of Object.entries(mapping) as [FieldKey, string][]) {
-        if (col) mapped[field] = raw[col] ?? '';
-      }
-      const r = csvRowSchema.safeParse(mapped);
-      if (r.success) return { index, data: r.data as Record<string, unknown>, firstError: '' };
-      const allErrors = Object.values(r.error.flatten().fieldErrors).flat() as string[];
-      return { index, data: null, firstError: allErrors[0] ?? 'Linha inválida' };
-    });
-    setValidated(rows);
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
   }
 
   function handleImport() {
-    if (!validated) return;
-    const validData = validated.filter(r => r.data !== null).map(r => r.data);
+    const validRows = rows.filter((r) => r.parsed).map((r) => r.parsed!);
     startTransition(async () => {
-      setServerError('');
-      const res = await importStakeholdersFromCsvAction(projectId, validData);
+      const res = await importStakeholdersFromCsvAction(projectId, validRows);
       if (res.ok) {
         setResult(res.data);
         setStep('done');
       } else {
-        setServerError(res.error);
+        setError(res.error);
       }
     });
   }
 
-  const validCount = validated ? validated.filter(r => r.data !== null).length : 0;
-  const errorCount = validated ? validated.filter(r => r.data === null).length  : 0;
+  const validCount = rows.filter((r) => r.parsed).length;
+  const invalidCount = rows.filter((r) => r.errors).length;
 
-  // ── Step: Upload ─────────────────────────────────────────────────────────────
-  if (step === 'upload') {
+  if (step === 'done' && result) {
     return (
-      <div className="max-w-lg mx-auto p-8 space-y-6">
-        <h1 className="text-2xl font-bold">Importar Partes Interessadas</h1>
-        <p className="text-sm text-muted-foreground">
-          Faça upload de um arquivo CSV com as colunas obrigatórias:{' '}
-          <strong>nome, posição, influência (1-5), interesse (1-5)</strong>. Separador vírgula ou ponto-e-vírgula.
+      <div className="p-6 max-w-lg mx-auto text-center space-y-4">
+        <div className="text-4xl">✓</div>
+        <h2 className="text-xl font-semibold text-gray-900">Importação concluída</h2>
+        <p className="text-sm text-gray-600">
+          {result.imported} stakeholder{result.imported !== 1 ? 's' : ''} importado{result.imported !== 1 ? 's' : ''}.
+          {result.skipped > 0 && ` ${result.skipped} ignorado${result.skipped !== 1 ? 's' : ''} (já existiam).`}
         </p>
-        <div className="border-2 border-dashed rounded-xl p-8 text-center space-y-3">
-          <p className="text-sm text-muted-foreground">Selecione um arquivo .csv</p>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleFile}
-            className="block w-full text-sm text-muted-foreground
-              file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
-              file:bg-primary file:text-primary-foreground file:cursor-pointer"
-          />
-          <p className="text-xs text-muted-foreground">UTF-8 · máx. 10.000 linhas</p>
-        </div>
-        <Link href={`/projects/${projectId}/stakeholders`} className="text-sm text-primary hover:underline">
-          ← Voltar para Partes Interessadas
-        </Link>
-      </div>
-    );
-  }
-
-  // ── Step: Map + Validate + Preview ───────────────────────────────────────────
-  if (step === 'map') {
-    return (
-      <div className="max-w-4xl mx-auto p-8 space-y-6">
-        <h1 className="text-2xl font-bold">Mapeamento de Colunas</h1>
-        <p className="text-sm text-muted-foreground">
-          {rawRows.length} linha{rawRows.length !== 1 ? 's' : ''} detectada{rawRows.length !== 1 ? 's' : ''}
-          · {headers.length} coluna{headers.length !== 1 ? 's' : ''} no arquivo
-        </p>
-
-        {/* Column mapping */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {FIELDS.map(f => (
-            <label key={f.key} className="flex flex-col gap-1">
-              <span className="text-sm font-medium">
-                {f.label}
-                {f.required && <span className="text-red-500 ml-1">*</span>}
-              </span>
-              {'hint' in f && (
-                <span className="text-xs text-muted-foreground">{f.hint}</span>
-              )}
-              <select
-                value={mapping[f.key] ?? ''}
-                onChange={e => {
-                  const val = e.target.value;
-                  setMapping(m => ({ ...m, [f.key]: val }));
-                  setValidated(null);
-                }}
-                className="border rounded-lg p-2 text-sm bg-background"
-              >
-                <option value="">— ignorar —</option>
-                {headers.map(h => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleValidate}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90"
-          >
-            Validar {rawRows.length} linhas
-          </button>
-          <button
-            onClick={() => setStep('upload')}
-            className="px-4 py-2 border rounded-lg text-sm hover:bg-accent"
-          >
-            Voltar
-          </button>
-        </div>
-
-        {/* Validation preview */}
-        {validated && (
-          <div className="space-y-4">
-            <div className="flex gap-6 text-sm">
-              {validCount > 0 && (
-                <span className="font-medium text-green-600">{validCount} linha{validCount !== 1 ? 's' : ''} válida{validCount !== 1 ? 's' : ''}</span>
-              )}
-              {errorCount > 0 && (
-                <span className="font-medium text-red-500">{errorCount} linha{errorCount !== 1 ? 's' : ''} com erro</span>
-              )}
-            </div>
-
-            <div className="max-h-72 overflow-y-auto rounded-lg border">
-              <table className="w-full text-xs">
-                <thead className="bg-muted sticky top-0">
-                  <tr>
-                    <th className="p-2 text-left w-8">#</th>
-                    <th className="p-2 text-left">Nome</th>
-                    <th className="p-2 text-left">Posição</th>
-                    <th className="p-2 text-center w-12">Inf.</th>
-                    <th className="p-2 text-center w-12">Int.</th>
-                    <th className="p-2 text-left">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {validated.map(row => {
-                    const nameCol = mapping.name ?? '';
-                    const posCol  = mapping.position ?? '';
-                    const infCol  = mapping.influence ?? '';
-                    const intCol  = mapping.interest ?? '';
-                    return (
-                      <tr
-                        key={row.index}
-                        className={row.data ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'}
-                      >
-                        <td className="p-2 text-muted-foreground">{row.index + 1}</td>
-                        <td className="p-2">{nameCol ? (rawRows[row.index]?.[nameCol] ?? '—') : '—'}</td>
-                        <td className="p-2">{posCol  ? (rawRows[row.index]?.[posCol]  ?? '—') : '—'}</td>
-                        <td className="p-2 text-center">{infCol ? (rawRows[row.index]?.[infCol] ?? '—') : '—'}</td>
-                        <td className="p-2 text-center">{intCol ? (rawRows[row.index]?.[intCol] ?? '—') : '—'}</td>
-                        <td className="p-2">
-                          {row.data
-                            ? <span className="text-green-700 dark:text-green-400">✓ válida</span>
-                            : <span className="text-red-600 dark:text-red-400" title={row.firstError}>✗ {row.firstError}</span>
-                          }
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {serverError && (
-              <p className="text-sm text-red-600">{serverError}</p>
-            )}
-
-            {validCount > 0 && (
-              <button
-                onClick={handleImport}
-                disabled={isPending}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {isPending
-                  ? 'Importando…'
-                  : `Importar ${validCount} parte${validCount !== 1 ? 's' : ''} interessada${validCount !== 1 ? 's' : ''}`
-                }
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Step: Done ────────────────────────────────────────────────────────────────
-  return (
-    <div className="max-w-lg mx-auto p-8 space-y-6 text-center">
-      <div className="text-5xl">✓</div>
-      <h1 className="text-2xl font-bold">Importação concluída</h1>
-      {result && (
-        <div className="flex justify-center gap-8">
-          <div>
-            <p className="text-3xl font-bold text-green-600">{result.imported}</p>
-            <p className="text-sm text-muted-foreground">importadas</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-muted-foreground">{result.skipped}</p>
-            <p className="text-sm text-muted-foreground">já existiam</p>
-          </div>
-        </div>
-      )}
-      <div className="flex justify-center gap-3">
-        <Link
-          href={`/projects/${projectId}/stakeholders`}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm hover:opacity-90 transition-opacity"
-        >
-          Ver Partes Interessadas
-        </Link>
         <button
-          onClick={() => {
-            setStep('upload');
-            setValidated(null);
-            setResult(null);
-            setServerError('');
-          }}
-          className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors"
+          onClick={() => router.push(`/projects/${projectId}/stakeholders`)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
         >
-          Nova Importação
+          Ver stakeholders
         </button>
+      </div>
+    );
+  }
+
+  if (step === 'preview') {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Prévia da importação</h2>
+            <p className="text-sm text-gray-500">
+              {validCount} válido{validCount !== 1 ? 's' : ''}
+              {invalidCount > 0 && `, ${invalidCount} com erro${invalidCount !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setRows([]); setStep('upload'); }} className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+              Novo arquivo
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={validCount === 0 || isPending}
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isPending ? 'Importando…' : `Importar ${validCount}`}
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">#</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Nome</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Posição</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Influência</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Interesse</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map((row, i) => (
+                <tr key={i} className={row.errors ? 'bg-red-50' : 'bg-white'}>
+                  <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                  <td className="px-3 py-2 font-medium text-gray-900">{row.raw.name ?? row.raw.nome ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.position ?? row.raw.posicao ?? row.raw.posição ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.influence ?? row.raw.influencia ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.interest ?? row.raw.interesse ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    {row.errors ? (
+                      <span className="text-red-600" title={row.errors.join('; ')}>✗ Erro</span>
+                    ) : (
+                      <span className="text-green-600">✓ OK</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-lg mx-auto space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Importar stakeholders via CSV</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            O arquivo deve ter as colunas: <code className="bg-gray-100 px-1 rounded">name, email, position, influence, interest</code>
+          </p>
+        </div>
+        <a
+          href="/templates/stakeholders-template.csv"
+          download
+          className="shrink-0 text-sm text-blue-600 hover:underline"
+        >
+          ↓ Baixar template
+        </a>
+      </div>
+
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+        onClick={() => fileRef.current?.click()}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+      >
+        <p className="text-sm text-gray-600">Arraste um arquivo CSV ou clique para selecionar</p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        />
+      </div>
+
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-xs text-gray-600 space-y-1">
+        <p className="font-medium text-gray-700">Valores válidos:</p>
+        <p><strong>position:</strong> {STAKEHOLDER_POSITIONS.join(', ')}</p>
+        <p><strong>influence / interest:</strong> 1 a 5</p>
+        <p><strong>organizationLevel (opcional):</strong> {STAKEHOLDER_LEVELS.join(', ')}</p>
       </div>
     </div>
   );

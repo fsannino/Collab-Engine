@@ -10,7 +10,7 @@ import { KpiCard } from '@/shared/components/KpiCard';
 type Params = Promise<{ id: string }>;
 
 const POSITION_LABEL: Record<string, string> = {
-  CHAMPION:   'CampeÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o',
+  CHAMPION:   'Campeão',
   SUPPORTER:  'Apoiador',
   NEUTRAL:    'Neutro',
   RESISTOR:   'Resistente',
@@ -112,17 +112,17 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
     <div className="max-w-6xl mx-auto space-y-8 p-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{project.name} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Dashboard</h1>
+        <h1 className="text-2xl font-bold">{project.name} — Dashboard</h1>
         <nav className="flex gap-3 text-sm">
           <Link href={`/projects/${projectId}/impacts`} className="text-primary hover:underline">Impactos</Link>
-          <span className="text-muted-foreground">ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</span>
+          <span className="text-muted-foreground">·</span>
           <Link href={`/projects/${projectId}/stakeholders`} className="text-primary hover:underline">Partes Interessadas</Link>
         </nav>
       </div>
 
       {/* Impact KPIs */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">AnÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡lise de Impacto</h2>
+        <h2 className="text-lg font-semibold mb-3">Análise de Impacto</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <KpiCard
             label="Total Ativos"
@@ -157,7 +157,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Mapa de Calor ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Impactos</h2>
+            <h2 className="text-lg font-semibold">Mapa de Calor — Impactos</h2>
             <Link href={`/projects/${projectId}/impacts/heatmap`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {heatmapCells.length > 0 ? (
@@ -186,14 +186,14 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
 
       {/* Recent acompanhamentos */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ltimos Acompanhamentos</h2>
+        <h2 className="text-lg font-semibold mb-3">Últimos Acompanhamentos</h2>
         {recentAcompanhamentos.length === 0 ? (
           <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
             Nenhum acompanhamento registrado ainda.
           </div>
         ) : (
           <div className="space-y-2">
-            {recentAcompanhamentos.map((a: (typeof recentAcompanhamentos)[number]) => (
+            {recentAcompanhamentos.map((a: { id: string; changedAt: Date; previousStatus: string | null; newStatus: string; previousScore: number | null; newScore: number; note: string | null; impact: { id: string; title: string } }) => (
               <div key={a.id} className="rounded-lg border p-3 flex flex-col gap-1">
                 <div className="flex items-start justify-between gap-2">
                   <Link
@@ -211,10 +211,10 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
                 )}
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {a.previousStatus && a.previousStatus !== a.newStatus && (
-                    <span>{a.previousStatus} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ {a.newStatus}</span>
+                    <span>{a.previousStatus} → {a.newStatus}</span>
                   )}
                   {a.previousScore !== null && a.previousScore !== a.newScore && (
-                    <span>Score: {a.previousScore} ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ {a.newScore}</span>
+                    <span>Score: {a.previousScore} → {a.newScore}</span>
                   )}
                 </div>
               </div>
@@ -225,7 +225,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
 
       {/* Quick actions */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">AÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes RÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡pidas</h2>
+        <h2 className="text-lg font-semibold mb-3">Ações Rápidas</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/projects/${projectId}/impacts/new`}
@@ -249,7 +249,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
             href={`/projects/${projectId}/impacts/report`}
             className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors"
           >
-            RelatÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â³rio de Impacto
+            Relatório de Impacto
           </Link>
           <Link
             href={`/projects/${projectId}/stakeholders/import`}
