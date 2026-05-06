@@ -16,7 +16,7 @@ export default async function StakeholderMatrixPage({ params }: Props) {
     select: { id: true, influence: true, interest: true, stakeholder: { select: { name: true } } },
   });
 
-  const points = rows.map((ps) => ({ id: ps.id, name: ps.stakeholder.name, influence: ps.influence, interest: ps.interest }));
+  const points = rows.map((ps: (typeof rows)[number]) => ({ id: ps.id, name: ps.stakeholder.name, influence: ps.influence, interest: ps.interest }));
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
