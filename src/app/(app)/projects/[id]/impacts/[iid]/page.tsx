@@ -111,7 +111,7 @@ export default async function ImpactDetailPage({ params }: Props) {
           <p className="text-sm text-gray-400 italic">Nenhuma atividade vinculada.</p>
         ) : (
           <ul className="space-y-2">
-            {impact.activities.map((a) => (
+            {impact.activities.map((a: any) => (
               <li key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
