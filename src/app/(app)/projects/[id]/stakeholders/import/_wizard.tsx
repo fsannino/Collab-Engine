@@ -1,156 +1,203 @@
-import { prisma } from '@/lib/prisma';
-import type { ActivityStatus } from '@prisma/client';
-import { getSession } from '@/core/auth/session';
-import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
-import { ImpactStatusBadge } from '@/shared/components/ImpactStatusBadge';
-import { AcompanhamentoTimeline } from '@/shared/components/AcompanhamentoTimeline';
-import { ActivityStatusForm } from '@/shared/components/ActivityStatusForm';
-import { AddAcompanhamentoForm } from '@/shared/components/AddAcompanhamentoForm';
-import { HeatmapMatrix } from '@/shared/components/HeatmapMatrix';
-import { calculateZone, zoneBgColor, zoneLabel } from '@/shared/governance/scoring';
+'use client';
 
-const DIMENSION_LABEL: Record<string, string> = {
-  PROCESS: 'Processo', PEOPLE: 'Pessoas', TECHNOLOGY: 'Tecnologia',
-  STRUCTURE: 'Estrutura', CULTURE: 'Cultura', POLICY: 'PolÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ticas', METRICS: 'MÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©tricas',
+import { useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { csvRowSchema, STAKEHOLDER_POSITIONS, STAKEHOLDER_LEVELS, type CsvRow } from '@/modules/stakeholder/csv-import.schema';
+import { importStakeholdersFromCsvAction } from '@/modules/stakeholder/csv-import.actions';
+
+type ParsedRow = { raw: Record<string, string>; parsed?: CsvRow; errors?: string[] };
+
+function parseCsv(text: string): Record<string, string>[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0]!.split(',').map((h) => h.trim().toLowerCase().replace(/\s+/g, '_'));
+  return lines.slice(1).map((line) => {
+    const values = line.split(',').map((v) => v.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']));
+  });
+}
+
+const COLUMN_MAP: Record<string, keyof CsvRow> = {
+  nome: 'name', name: 'name',
+  email: 'email',
+  posicao: 'position', posição: 'position', position: 'position',
+  influencia: 'influence', influência: 'influence', influence: 'influence',
+  interesse: 'interest', interest: 'interest',
+  nivel_organizacional: 'organizationLevel', organization_level: 'organizationLevel', nivel: 'organizationLevel',
+  notas: 'notes', notes: 'notes', observacoes: 'notes', observações: 'notes',
 };
 
-type Props = { params: Promise<{ id: string; iid: string }> };
+function normalizeRow(raw: Record<string, string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const mapped = COLUMN_MAP[k];
+    if (mapped) out[mapped] = v;
+  }
+  return out;
+}
 
-export default async function ImpactDetailPage({ params }: Props) {
-  const { id: projectId, iid } = await params;
-  const session = await getSession();
-  if (!session) redirect('/login');
+export function ImportWizard({ projectId }: { projectId: string }) {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload');
+  const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  const [impact, peers] = await Promise.all([
-    prisma.changeImpact.findFirst({
-      where: { id: iid, deletedAt: null, project: { tenantId: session.tenantId } },
-      include: {
-        activities:      { where: { deletedAt: null }, orderBy: { createdAt: 'asc' } },
-        areas:           { where: { deletedAt: null }, include: { area: true } },
-        acompanhamentos: { orderBy: { changedAt: 'desc' } },
-      },
-    }),
-    prisma.changeImpact.findMany({
-      where: { projectId, deletedAt: null, project: { tenantId: session.tenantId } },
-      select: { id: true, title: true, severityScore: true, extentScore: true },
-    }),
-  ]);
-  if (!impact) notFound();
+  function handleFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rawRows = parseCsv(text);
+      const parsed: ParsedRow[] = rawRows.map((raw) => {
+        const normalized = normalizeRow(raw);
+        const result = csvRowSchema.safeParse(normalized);
+        if (result.success) return { raw, parsed: result.data };
+        const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+        return { raw, errors };
+      });
+      setRows(parsed);
+      setStep('preview');
+    };
+    reader.readAsText(file);
+  }
 
-  const zone = calculateZone(impact.score);
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
 
-  // Aggregate peers for heatmap
-  const cellMap = new Map<string, { severity: number; probability: number; count: number; items: { id: string; title: string }[] }>();
-  for (const p of peers) {
-    const key      = `${p.severityScore}-${p.extentScore}`;
-    const existing = cellMap.get(key);
-    if (existing) { existing.count++; existing.items.push({ id: p.id, title: p.title }); }
-    else cellMap.set(key, { severity: p.severityScore, probability: p.extentScore, count: 1, items: [{ id: p.id, title: p.title }] });
+  function handleImport() {
+    const validRows = rows.filter((r) => r.parsed).map((r) => r.parsed!);
+    startTransition(async () => {
+      const res = await importStakeholdersFromCsvAction(projectId, validRows);
+      if (res.ok) {
+        setResult(res.data);
+        setStep('done');
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  const validCount = rows.filter((r) => r.parsed).length;
+  const invalidCount = rows.filter((r) => r.errors).length;
+
+  if (step === 'done' && result) {
+    return (
+      <div className="p-6 max-w-lg mx-auto text-center space-y-4">
+        <div className="text-4xl">✓</div>
+        <h2 className="text-xl font-semibold text-gray-900">Importação concluída</h2>
+        <p className="text-sm text-gray-600">
+          {result.imported} stakeholder{result.imported !== 1 ? 's' : ''} importado{result.imported !== 1 ? 's' : ''}.
+          {result.skipped > 0 && ` ${result.skipped} ignorado${result.skipped !== 1 ? 's' : ''} (já existiam).`}
+        </p>
+        <button
+          onClick={() => router.push(`/projects/${projectId}/stakeholders`)}
+          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+        >
+          Ver stakeholders
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 'preview') {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Prévia da importação</h2>
+            <p className="text-sm text-gray-500">
+              {validCount} válido{validCount !== 1 ? 's' : ''}
+              {invalidCount > 0 && `, ${invalidCount} com erro${invalidCount !== 1 ? 's' : ''}`}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => { setRows([]); setStep('upload'); }} className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+              Novo arquivo
+            </button>
+            <button
+              onClick={handleImport}
+              disabled={validCount === 0 || isPending}
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isPending ? 'Importando…' : `Importar ${validCount}`}
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full text-xs">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">#</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Nome</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Posição</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Influência</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Interesse</th>
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map((row, i) => (
+                <tr key={i} className={row.errors ? 'bg-red-50' : 'bg-white'}>
+                  <td className="px-3 py-2 text-gray-400">{i + 1}</td>
+                  <td className="px-3 py-2 font-medium text-gray-900">{row.raw.name ?? row.raw.nome ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.position ?? row.raw.posicao ?? row.raw.posição ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.influence ?? row.raw.influencia ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-700">{row.raw.interest ?? row.raw.interesse ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    {row.errors ? (
+                      <span className="text-red-600" title={row.errors.join('; ')}>✗ Erro</span>
+                    ) : (
+                      <span className="text-green-600">✓ OK</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="p-6 max-w-lg mx-auto space-y-6">
       <div>
-        <nav className="text-xs text-gray-400 mb-1">
-          <Link href={`/projects/${projectId}/impacts`} className="hover:underline">Impactos</Link>
-          {' / '}<span className="truncate">{impact.title}</span>
-        </nav>
-        <div className="flex flex-wrap items-start gap-3">
-          <div
-            className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold shrink-0 text-lg"
-            style={{ backgroundColor: zoneBgColor(zone) }}
-            title={zoneLabel(zone)}
-          >
-            {impact.score}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900">{impact.title}</h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-600">{DIMENSION_LABEL[impact.dimension]}</span>
-              <ImpactStatusBadge status={impact.status} size="sm" />
-              <span className="text-xs text-gray-400">Sev {impact.severityScore} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Ext {impact.extentScore}</span>
-            </div>
-          </div>
-        </div>
+        <h2 className="text-lg font-semibold text-gray-900">Importar stakeholders via CSV</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          O arquivo deve ter as colunas: <code className="bg-gray-100 px-1 rounded">name, email, position, influence, interest</code>
+        </p>
       </div>
 
-      {/* Description + Mitigation */}
-      {(impact.description || impact.mitigation) && (
-        <section className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
-          {impact.description && (
-            <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-1">DescriÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-line">{impact.description}</p>
-            </div>
-          )}
-          {impact.mitigation && (
-            <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-1">Plano de MitigaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-line">{impact.mitigation}</p>
-            </div>
-          )}
-        </section>
-      )}
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => e.preventDefault()}
+        onClick={() => fileRef.current?.click()}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+      >
+        <p className="text-sm text-gray-600">Arraste um arquivo CSV ou clique para selecionar</p>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+        />
+      </div>
 
-      {/* Heatmap ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â shown when project has multiple impacts */}
-      {peers.length > 1 && (
-        <section className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">PosiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o no Projeto</h2>
-          <HeatmapMatrix entityType="impact" data={Array.from(cellMap.values())} size="sm" />
-        </section>
-      )}
-
-      {/* Activities */}
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Atividades de MitigaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
-          <span className="ml-2 text-gray-400 font-normal">({impact.activities.length})</span>
-        </h2>
-        {impact.activities.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Nenhuma atividade vinculada.</p>
-        ) : (
-          <ul className="space-y-2">
-            {impact.activities.map((a: { id: string; title: string; description: string | null; status: ActivityStatus }) => (
-              <li key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{a.title}</p>
-                  {a.description && <p className="text-xs text-gray-500 mt-0.5">{a.description}</p>}
-                </div>
-                <ActivityStatusForm activityId={a.id} currentStatus={a.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Areas */}
-      {impact.areas.length > 0 && (
-        <section className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âreas Afetadas</h2>
-          <div className="flex flex-wrap gap-2">
-            {impact.areas.map((ia) => (
-              <span key={ia.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{ia.area.nome}</span>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Timeline */}
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h2 className="text-sm font-semibold text-gray-700">Timeline</h2>
-          {impact.status !== 'CLOSED' && (
-            <AddAcompanhamentoForm impactId={impact.id} currentStatus={impact.status} />
-          )}
-        </div>
-        <AcompanhamentoTimeline entries={impact.acompanhamentos} />
-      </section>
-
-      <Link href={`/projects/${projectId}/impacts`} className="inline-block px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-        ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Ãƒâ€šÃ‚Â Voltar
-      </Link>
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 text-xs text-gray-600 space-y-1">
+        <p className="font-medium text-gray-700">Valores válidos:</p>
+        <p><strong>position:</strong> {STAKEHOLDER_POSITIONS.join(', ')}</p>
+        <p><strong>influence / interest:</strong> 1 a 5</p>
+        <p><strong>organizationLevel (opcional):</strong> {STAKEHOLDER_LEVELS.join(', ')}</p>
+      </div>
     </div>
   );
 }

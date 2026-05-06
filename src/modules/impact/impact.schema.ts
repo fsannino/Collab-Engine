@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ImpactDimension, ImpactStatus, ActivityStatus } from '@prisma/client';
 
 const scoreField = z.coerce
-  .number({ invalid_type_error: 'Deve ser um número' })
+  .number({ message: 'Deve ser um número' })
   .int('Deve ser um número inteiro')
   .min(1, 'Mínimo é 1')
   .max(5, 'Máximo é 5');
@@ -13,7 +13,7 @@ export const createImpactSchema = z.object({
   projectId:     z.string().uuid('ID do projeto inválido'),
   title:         z.string().min(3, 'Título deve ter no mínimo 3 caracteres').max(200, 'Título deve ter no máximo 200 caracteres'),
   description:   z.string().optional(),
-  dimension:     z.nativeEnum(ImpactDimension, { errorMap: () => ({ message: 'Dimensão inválida' }) }),
+  dimension:     z.nativeEnum(ImpactDimension, { message: 'Dimensão inválida' }),
   severityScore: scoreField,
   extentScore:   scoreField,
   mitigation:    z.string().optional(),
@@ -59,7 +59,7 @@ export type LinkActivityInput = z.infer<typeof linkActivitySchema>;
 
 export const updateActivityStatusSchema = z.object({
   activityId: z.string().uuid('ID da atividade inválido'),
-  status:     z.nativeEnum(ActivityStatus, { errorMap: () => ({ message: 'Status inválido' }) }),
+  status:     z.nativeEnum(ActivityStatus, { message: 'Status inválido' }),
 });
 
 export type UpdateActivityStatusInput = z.infer<typeof updateActivityStatusSchema>;
@@ -78,7 +78,7 @@ export type LinkAreaInput = z.infer<typeof linkAreaSchema>;
 
 export const addAcompanhamentoSchema = z.object({
   impactId:      z.string().uuid('ID do impacto inválido'),
-  newStatus:     z.nativeEnum(ImpactStatus, { errorMap: () => ({ message: 'Status inválido' }) }),
+  newStatus:     z.nativeEnum(ImpactStatus, { message: 'Status inválido' }),
   severityScore: scoreField.optional(),
   extentScore:   scoreField.optional(),
   note:          z.string().min(1, 'Observação é obrigatória').max(1000, 'Observação muito longa'),
