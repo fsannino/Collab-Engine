@@ -5,7 +5,15 @@ const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 const COOKIE_NAME = process.env.COOKIE_NAME ?? 'collab_session';
 
 // Paths the proxy never intercepts
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api/health', '/_next', '/favicon.ico'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth',
+  '/api/health',
+  '/api/cron',       // protected by CRON_SECRET bearer token
+  '/api/webhooks',   // protected by HMAC signature
+  '/_next',
+  '/favicon.ico',
+];
 
 // Paths that require ADMIN role
 const ADMIN_PATHS = ['/admin'];
