@@ -1,6 +1,12 @@
 -- Migration: Training schema (M5 — Sprint 4, Issue 022)
+-- Replaces Sprint 2/3 TrainingMatrix/TrainingPlan with full Sprint 4 schema.
 -- Adds: TrainingPlan, TrainingItem, FuncaoTreinamento, PessoaTreinamento, Turma, InscricaoTurma
--- + enums: TrainingPlanStatus, Modality, TrainingStatus, TurmaStatus
+-- + enums: TrainingPlanStatus, Modality, TrainingStatus (new values), TurmaStatus
+
+-- Drop old Sprint 2/3 training schema (replaced by Sprint 4)
+DROP TABLE IF EXISTS "TrainingPlan" CASCADE;
+DROP TABLE IF EXISTS "TrainingMatrix" CASCADE;
+DROP TYPE IF EXISTS "TrainingStatus";
 
 CREATE TYPE "TrainingPlanStatus" AS ENUM ('DRAFT', 'APPROVED', 'ACTIVE', 'COMPLETED', 'CANCELLED');
 CREATE TYPE "Modality" AS ENUM ('PRESENCIAL', 'ONLINE', 'HIBRIDO', 'AUTOESTUDO');
