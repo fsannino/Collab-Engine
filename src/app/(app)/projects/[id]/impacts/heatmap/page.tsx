@@ -22,7 +22,7 @@ export default async function ImpactsHeatmapPage({ params }: Props) {
     _count: { id: true },
   });
 
-  const data = groups.map((g) => ({
+  const data = groups.map((g: (typeof groups)[number]) => ({
     severity:    g.severityScore,
     probability: g.extentScore,
     count:       g._count.id,

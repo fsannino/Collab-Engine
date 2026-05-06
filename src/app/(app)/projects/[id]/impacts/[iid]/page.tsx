@@ -39,6 +39,10 @@ export default async function ImpactDetailPage({ params }: Props) {
 
   const zone = calculateZone(impact.score);
 
+  type ImpactActivity = (typeof impact.activities)[number];
+  type ImpactAreaLink = (typeof impact.areas)[number];
+
+
   // Aggregate peers for heatmap
   const cellMap = new Map<string, { severity: number; probability: number; count: number; items: { id: string; title: string }[] }>();
   for (const p of peers) {
@@ -111,7 +115,7 @@ export default async function ImpactDetailPage({ params }: Props) {
           <p className="text-sm text-gray-400 italic">Nenhuma atividade vinculada.</p>
         ) : (
           <ul className="space-y-2">
-            {impact.activities.map((a: any) => (
+            {impact.activities.map((a: ImpactActivity) => (
               <li key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
@@ -129,7 +133,7 @@ export default async function ImpactDetailPage({ params }: Props) {
         <section className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Áreas Afetadas</h2>
           <div className="flex flex-wrap gap-2">
-            {impact.areas.map((ia) => (
+            {impact.areas.map((ia: ImpactAreaLink) => (
               <span key={ia.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{ia.area.nome}</span>
             ))}
           </div>

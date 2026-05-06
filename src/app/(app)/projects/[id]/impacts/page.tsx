@@ -52,7 +52,7 @@ export default async function ImpactsPage({ params, searchParams }: Props) {
         </div>
       ) : (
         <div className="space-y-3">
-          {impacts.map((impact) => {
+          {impacts.map((impact: (typeof impacts)[number]) => {
             const zone = calculateZone(impact.score);
             return (
               <Link key={impact.id} href={`/projects/${projectId}/impacts/${impact.id}`} className="block">

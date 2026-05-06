@@ -10,9 +10,11 @@ import { importStakeholdersFromCsvAction } from '@/modules/stakeholder/csv-impor
 function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) return { headers: [], rows: [] };
-  const delim = lines[0].includes(';') ? ';' : ',';
+  const firstLine = lines[0];
+  if (!firstLine) return { headers: [], rows: [] };
+  const delim = firstLine.includes(';') ? ';' : ',';
   const clean = (s: string) => s.trim().replace(/^"|"$/g, '');
-  const headers = lines[0].split(delim).map(clean);
+  const headers = firstLine.split(delim).map(clean);
   const rows = lines.slice(1).map(line => {
     const vals = line.split(delim).map(clean);
     return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
@@ -244,10 +246,10 @@ export function ImportWizard({ projectId }: { projectId: string }) {
                         className={row.data ? 'bg-green-50 dark:bg-green-950/20' : 'bg-red-50 dark:bg-red-950/20'}
                       >
                         <td className="p-2 text-muted-foreground">{row.index + 1}</td>
-                        <td className="p-2">{nameCol ? (rawRows[row.index][nameCol] ?? '—') : '—'}</td>
-                        <td className="p-2">{posCol  ? (rawRows[row.index][posCol]  ?? '—') : '—'}</td>
-                        <td className="p-2 text-center">{infCol ? (rawRows[row.index][infCol] ?? '—') : '—'}</td>
-                        <td className="p-2 text-center">{intCol ? (rawRows[row.index][intCol] ?? '—') : '—'}</td>
+                        <td className="p-2">{nameCol ? (rawRows[row.index]?.[nameCol] ?? '—') : '—'}</td>
+                        <td className="p-2">{posCol  ? (rawRows[row.index]?.[posCol]  ?? '—') : '—'}</td>
+                        <td className="p-2 text-center">{infCol ? (rawRows[row.index]?.[infCol] ?? '—') : '—'}</td>
+                        <td className="p-2 text-center">{intCol ? (rawRows[row.index]?.[intCol] ?? '—') : '—'}</td>
                         <td className="p-2">
                           {row.data
                             ? <span className="text-green-700 dark:text-green-400">✓ válida</span>
