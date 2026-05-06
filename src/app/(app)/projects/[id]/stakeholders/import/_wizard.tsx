@@ -169,11 +169,20 @@ export function ImportWizard({ projectId }: { projectId: string }) {
 
   return (
     <div className="p-6 max-w-lg mx-auto space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Importar stakeholders via CSV</h2>
-        <p className="text-sm text-gray-500 mt-1">
-          O arquivo deve ter as colunas: <code className="bg-gray-100 px-1 rounded">name, email, position, influence, interest</code>
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Importar stakeholders via CSV</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            O arquivo deve ter as colunas: <code className="bg-gray-100 px-1 rounded">name, email, position, influence, interest</code>
+          </p>
+        </div>
+        <a
+          href="/templates/stakeholders-template.csv"
+          download
+          className="shrink-0 text-sm text-blue-600 hover:underline"
+        >
+          ↓ Baixar template
+        </a>
       </div>
 
       <div
