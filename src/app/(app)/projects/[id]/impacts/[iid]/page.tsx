@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { ActivityStatus } from '@prisma/client';
 import { getSession } from '@/core/auth/session';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -10,8 +11,13 @@ import { HeatmapMatrix } from '@/shared/components/HeatmapMatrix';
 import { calculateZone, zoneBgColor, zoneLabel } from '@/shared/governance/scoring';
 
 const DIMENSION_LABEL: Record<string, string> = {
-  PROCESS: 'Processo', PEOPLE: 'Pessoas', TECHNOLOGY: 'Tecnologia',
-  STRUCTURE: 'Estrutura', CULTURE: 'Cultura', POLICY: 'Políticas', METRICS: 'Métricas',
+  PROCESS:    'Processo',
+  PEOPLE:     'Pessoas',
+  TECHNOLOGY: 'Tecnologia',
+  STRUCTURE:  'Estrutura',
+  CULTURE:    'Cultura',
+  POLICY:     'Políticas',
+  METRICS:    'Métricas',
 };
 
 type Props = { params: Promise<{ id: string; iid: string }> };
@@ -69,7 +75,7 @@ export default async function ImpactDetailPage({ params }: Props) {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-600">{DIMENSION_LABEL[impact.dimension]}</span>
               <ImpactStatusBadge status={impact.status} size="sm" />
-              <span className="text-xs text-gray-400">Sev {impact.severityScore} × Ext {impact.extentScore}</span>
+              <span className="text-xs text-gray-400">Sev {impact.severityScore} · Ext {impact.extentScore}</span>
             </div>
           </div>
         </div>
@@ -111,7 +117,7 @@ export default async function ImpactDetailPage({ params }: Props) {
           <p className="text-sm text-gray-400 italic">Nenhuma atividade vinculada.</p>
         ) : (
           <ul className="space-y-2">
-            {impact.activities.map((a) => (
+            {impact.activities.map((a: { id: string; title: string; description: string | null; status: ActivityStatus }) => (
               <li key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
@@ -129,7 +135,7 @@ export default async function ImpactDetailPage({ params }: Props) {
         <section className="rounded-lg border border-gray-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Áreas Afetadas</h2>
           <div className="flex flex-wrap gap-2">
-            {impact.areas.map((ia) => (
+            {impact.areas.map((ia: { id: string; area: { nome: string } }) => (
               <span key={ia.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{ia.area.nome}</span>
             ))}
           </div>

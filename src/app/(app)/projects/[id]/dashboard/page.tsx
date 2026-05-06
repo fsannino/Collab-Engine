@@ -94,7 +94,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
   const activeImpacts = allImpacts.length - closedCount;
 
   // Heatmap cells (severityScore=X, extentScore=Y)
-  const heatmapCells: HeatmapCellData[] = impactHeatmapRaw.map(r => ({
+  const heatmapCells: HeatmapCellData[] = impactHeatmapRaw.map((r: { severityScore: number; extentScore: number; _count: { id: number } }) => ({
     severity: r.severityScore,
     probability: r.extentScore,
     count: r._count.id,
@@ -161,7 +161,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
             <Link href={`/projects/${projectId}/impacts/heatmap`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {heatmapCells.length > 0 ? (
-            <HeatmapMatrix cells={heatmapCells} entityType="impact" size="sm" />
+            <HeatmapMatrix data={heatmapCells} entityType="impact" size="sm" />
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
               Nenhum impacto ativo registrado.
@@ -175,7 +175,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
             <Link href={`/projects/${projectId}/stakeholders/matrix`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {stakeholderPoints.length > 0 ? (
-            <StakeholderMatrix points={stakeholderPoints} projectId={projectId} />
+            <StakeholderMatrix stakeholders={stakeholderPoints} projectId={projectId} />
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
               Nenhuma parte interessada mapeada.
@@ -193,7 +193,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
           </div>
         ) : (
           <div className="space-y-2">
-            {recentAcompanhamentos.map(a => (
+            {recentAcompanhamentos.map((a: { id: string; changedAt: Date; previousStatus: string | null; newStatus: string; previousScore: number | null; newScore: number; note: string | null; impact: { id: string; title: string } }) => (
               <div key={a.id} className="rounded-lg border p-3 flex flex-col gap-1">
                 <div className="flex items-start justify-between gap-2">
                   <Link

@@ -2,7 +2,7 @@
   "name": "collab-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Collab Engine — Plataforma de orquestração de mudança organizacional (CollabZ Consultoria)",
+  "description": "Collab Engine â€” Plataforma de orquestraÃ§Ã£o de mudanÃ§a organizacional (CollabZ Consultoria)",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
