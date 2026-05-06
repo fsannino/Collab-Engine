@@ -10,7 +10,7 @@ import { KpiCard } from '@/shared/components/KpiCard';
 type Params = Promise<{ id: string }>;
 
 const POSITION_LABEL: Record<string, string> = {
-  CHAMPION:   'CampeÃƒÆ’Ã‚Â£o',
+  CHAMPION:   'CampeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o',
   SUPPORTER:  'Apoiador',
   NEUTRAL:    'Neutro',
   RESISTOR:   'Resistente',
@@ -94,7 +94,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
   const activeImpacts = allImpacts.length - closedCount;
 
   // Heatmap cells (severityScore=X, extentScore=Y)
-  const heatmapCells: HeatmapCellData[] = impactHeatmapRaw.map(r => ({
+  const heatmapCells: HeatmapCellData[] = impactHeatmapRaw.map((r: { severityScore: number; extentScore: number; _count: { id: number } }) => ({
     severity: r.severityScore,
     probability: r.extentScore,
     count: r._count.id,
@@ -112,17 +112,17 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
     <div className="max-w-6xl mx-auto space-y-8 p-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">{project.name} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Dashboard</h1>
+        <h1 className="text-2xl font-bold">{project.name} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Dashboard</h1>
         <nav className="flex gap-3 text-sm">
           <Link href={`/projects/${projectId}/impacts`} className="text-primary hover:underline">Impactos</Link>
-          <span className="text-muted-foreground">Ãƒâ€šÃ‚Â·</span>
+          <span className="text-muted-foreground">ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â·</span>
           <Link href={`/projects/${projectId}/stakeholders`} className="text-primary hover:underline">Partes Interessadas</Link>
         </nav>
       </div>
 
       {/* Impact KPIs */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">AnÃƒÆ’Ã‚Â¡lise de Impacto</h2>
+        <h2 className="text-lg font-semibold mb-3">AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise de Impacto</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <KpiCard
             label="Total Ativos"
@@ -157,7 +157,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Mapa de Calor ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Impactos</h2>
+            <h2 className="text-lg font-semibold">Mapa de Calor ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Impactos</h2>
             <Link href={`/projects/${projectId}/impacts/heatmap`} className="text-sm text-primary hover:underline">Ver completo</Link>
           </div>
           {heatmapCells.length > 0 ? (
@@ -186,7 +186,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
 
       {/* Recent acompanhamentos */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">ÃƒÆ’Ã…Â¡ltimos Acompanhamentos</h2>
+        <h2 className="text-lg font-semibold mb-3">ÃƒÆ’Ã†â€™Ãƒâ€¦Ã‚Â¡ltimos Acompanhamentos</h2>
         {recentAcompanhamentos.length === 0 ? (
           <div className="rounded-lg border p-6 text-sm text-muted-foreground text-center">
             Nenhum acompanhamento registrado ainda.
@@ -211,10 +211,10 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
                 )}
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {a.previousStatus && a.previousStatus !== a.newStatus && (
-                    <span>{a.previousStatus} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ {a.newStatus}</span>
+                    <span>{a.previousStatus} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {a.newStatus}</span>
                   )}
                   {a.previousScore !== null && a.previousScore !== a.newScore && (
-                    <span>Score: {a.previousScore} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ {a.newScore}</span>
+                    <span>Score: {a.previousScore} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ {a.newScore}</span>
                   )}
                 </div>
               </div>
@@ -225,7 +225,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
 
       {/* Quick actions */}
       <section>
-        <h2 className="text-lg font-semibold mb-3">AÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes RÃƒÆ’Ã‚Â¡pidas</h2>
+        <h2 className="text-lg font-semibold mb-3">AÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes RÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡pidas</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/projects/${projectId}/impacts/new`}
@@ -249,7 +249,7 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
             href={`/projects/${projectId}/impacts/report`}
             className="px-4 py-2 border rounded-lg text-sm hover:bg-accent transition-colors"
           >
-            RelatÃƒÆ’Ã‚Â³rio de Impacto
+            RelatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio de Impacto
           </Link>
           <Link
             href={`/projects/${projectId}/stakeholders/import`}
