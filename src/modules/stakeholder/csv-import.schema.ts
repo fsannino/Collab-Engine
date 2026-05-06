@@ -17,18 +17,16 @@ export const csvRowSchema = z.object({
   position: z.preprocess(
     toUpper,
     z.enum(STAKEHOLDER_POSITIONS, {
-      errorMap: () => ({
-        message: 'Posição inválida. Use: CHAMPION, SUPPORTER, NEUTRAL, RESISTOR ou ANTAGONIST',
-      }),
+      error: 'Posição inválida. Use: CHAMPION, SUPPORTER, NEUTRAL, RESISTOR ou ANTAGONIST',
     }),
   ),
   influence: z.coerce
-    .number({ invalid_type_error: 'Deve ser um número' })
+    .number()
     .int()
     .min(1, 'Mínimo 1')
     .max(5, 'Máximo 5'),
   interest: z.coerce
-    .number({ invalid_type_error: 'Deve ser um número' })
+    .number()
     .int()
     .min(1, 'Mínimo 1')
     .max(5, 'Máximo 5'),
