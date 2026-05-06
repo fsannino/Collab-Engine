@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { HeatmapMatrix, type HeatmapCellData } from './HeatmapMatrix';
 
-type StakeholderPoint = { id: string; name: string; influence: number; interest: number };
+export type StakeholderPoint = { id: string; name: string; influence: number; interest: number };
 
 type StakeholderMatrixProps = {
   projectId: string;
