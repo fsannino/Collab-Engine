@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { HeatmapMatrix, type HeatmapCellData } from './HeatmapMatrix';
 
-type StakeholderPoint = { id: string; name: string; influence: number; interest: number };
+export type StakeholderPoint = { id: string; name: string; influence: number; interest: number };
 
 type StakeholderMatrixProps = {
   projectId: string;
@@ -15,7 +15,7 @@ type StakeholderMatrixProps = {
 export function StakeholderMatrix({ projectId, stakeholders, size, loading }: StakeholderMatrixProps) {
   const router = useRouter();
 
-  // X axis = Interesse (severity), Y axis = Influência (probability)
+  // X axis = Interesse (severity), Y axis = InfluÃªncia (probability)
   const countMap = new Map<string, HeatmapCellData>();
   for (const s of stakeholders) {
     const key      = `${s.interest}-${s.influence}`;
