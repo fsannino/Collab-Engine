@@ -1,0 +1,5 @@
+name,email,position,influence,interest,organizationLevel,notes
+Maria Silva,maria.silva@empresa.com,CHAMPION,5,4,EXECUTIVE,Patrocinadora executiva do projeto
+João Santos,joao.santos@empresa.com,SUPPORTER,3,3,MIDDLE_MANAGEMENT,Gerente de operações
+Ana Oliveira,,NEUTRAL,2,2,OPERATIONAL,
+Carlos Lima,carlos.lima@empresa.com,RESISTOR,4,5,MIDDLE_MANAGEMENT,Preocupado com impacto na equipe
