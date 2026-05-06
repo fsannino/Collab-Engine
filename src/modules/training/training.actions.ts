@@ -1,171 +1,190 @@
 'use server';
 
-import { prisma } from '@/core/prisma/client';
+import { z } from 'zod';
+import { revalidatePath } from 'next/cache';
 import { getSession } from '@/core/auth/session';
+import { prisma } from '@/lib/prisma';
 import type { ActionResult } from '@/shared/types/action-result';
-import type { TrainingMatrix, TrainingPlan } from '@prisma/client';
-import {
-  createTrainingMatrixSchema,
-  assignTrainingPlanSchema,
-  updateTrainingStatusSchema,
-  generateMatrixFromImpactSchema,
-} from './training.schema';
-import { TRAINING_CATALOG } from './training-catalog';
 
-async function getTenantGuard(projectId: string, tenantId: string) {
-  return prisma.project.findFirst({
-    where: { id: projectId, tenantId, deletedAt: null },
-    select: { id: true },
-  });
-}
+// ─── Schemas ────────────────────────────────────────────────────────────────
 
-export async function createTrainingMatrixAction(
-  input: unknown,
-): Promise<ActionResult<TrainingMatrix>> {
+const createPlanSchema = z.object({
+  projectId:   z.string().uuid(),
+  name:        z.string().min(3).max(200),
+  description: z.string().max(1000).optional().or(z.literal('')),
+  startDate:   z.coerce.date().optional(),
+  endDate:     z.coerce.date().optional(),
+});
+
+const createTurmaSchema = z.object({
+  trainingItemId: z.string().uuid(),
+  nome:           z.string().min(2).max(200),
+  dataInicio:     z.coerce.date(),
+  dataFim:        z.coerce.date(),
+  modality:       z.enum(['PRESENCIAL', 'ONLINE', 'HIBRIDO', 'AUTOESTUDO']),
+  local:          z.string().max(300).optional().or(z.literal('')),
+  instrutorId:    z.string().uuid().optional().or(z.literal('')),
+  capacidade:     z.coerce.number().int().min(1).optional(),
+});
+
+const savePresencaSchema = z.object({
+  turmaId: z.string().uuid(),
+  inscricoes: z.array(z.object({
+    id:            z.string().uuid(),
+    presente:      z.boolean().nullable(),
+    notaAvaliacao: z.coerce.number().int().min(1).max(5).nullable().optional(),
+    observacao:    z.string().max(500).optional().or(z.literal('')),
+  })),
+});
+
+const encerrarTurmaSchema = z.object({
+  turmaId: z.string().uuid(),
+});
+
+// ─── Plan ────────────────────────────────────────────────────────────────────
+
+export async function createTrainingPlanAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Não autenticado' };
 
-  const parsed = createTrainingMatrixSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Dados inválidos', issues: parsed.error.flatten().fieldErrors };
-  }
+  const parsed = createPlanSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
-  const project = await getTenantGuard(parsed.data.projectId, session.tenantId);
+  const { projectId, name, description, startDate, endDate } = parsed.data;
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, tenantId: session.tenantId, deletedAt: null },
+  });
   if (!project) return { ok: false, error: 'Projeto não encontrado' };
-
-  const matrix = await prisma.trainingMatrix.create({
-    data: { ...parsed.data, tenantId: session.tenantId, createdBy: session.userId },
-  });
-
-  return { ok: true, data: matrix };
-}
-
-export async function assignTrainingPlanAction(
-  input: unknown,
-): Promise<ActionResult<TrainingPlan>> {
-  const session = await getSession();
-  if (!session) return { ok: false, error: 'Não autenticado' };
-
-  const parsed = assignTrainingPlanSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Dados inválidos', issues: parsed.error.flatten().fieldErrors };
-  }
-
-  const { matrixId, projectId, userId, stakeholderId, dueDate } = parsed.data;
-
-  const matrix = await prisma.trainingMatrix.findFirst({
-    where: { id: matrixId, tenantId: session.tenantId, deletedAt: null },
-    select: { id: true },
-  });
-  if (!matrix) return { ok: false, error: 'Trilha não encontrada' };
 
   const plan = await prisma.trainingPlan.create({
     data: {
-      matrixId,
+      tenantId: session.tenantId,
       projectId,
-      userId,
-      stakeholderId,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
+      name,
+      description: description || null,
+      startDate:   startDate ?? null,
+      endDate:     endDate   ?? null,
+      createdBy:   session.userId,
     },
   });
 
-  return { ok: true, data: plan };
+  revalidatePath(`/projects/${projectId}/training`);
+  return { ok: true, data: { id: plan.id } };
 }
 
-export async function updateTrainingStatusAction(
-  input: unknown,
-): Promise<ActionResult<{ id: string }>> {
+// ─── Turma ───────────────────────────────────────────────────────────────────
+
+export async function createTurmaAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Não autenticado' };
 
-  const parsed = updateTrainingStatusSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Dados inválidos', issues: parsed.error.flatten().fieldErrors };
-  }
+  const parsed = createTurmaSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
-  const { planId, status, notes } = parsed.data;
+  const { trainingItemId, nome, dataInicio, dataFim, modality, local, instrutorId, capacidade } = parsed.data;
 
-  const plan = await prisma.trainingPlan.findFirst({
-    where: {
-      id: planId,
-      deletedAt: null,
-      matrix: { tenantId: session.tenantId, deletedAt: null },
+  const turma = await prisma.turma.create({
+    data: {
+      trainingItemId,
+      nome,
+      dataInicio,
+      dataFim,
+      modality,
+      local:       local       || null,
+      instrutorId: instrutorId || null,
+      capacidade:  capacidade  ?? null,
     },
-    select: { id: true, projectId: true },
   });
-  if (!plan) return { ok: false, error: 'Plano não encontrado' };
+
+  revalidatePath(`/training/turmas/${turma.id}`);
+  return { ok: true, data: { id: turma.id } };
+}
+
+// ─── Presença ────────────────────────────────────────────────────────────────
+
+export async function savePresencaAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = savePresencaSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { turmaId, inscricoes } = parsed.data;
+
+  await prisma.$transaction(
+    inscricoes.map((i) =>
+      prisma.inscricaoTurma.update({
+        where: { id: i.id },
+        data: {
+          presente:      i.presente,
+          notaAvaliacao: i.notaAvaliacao ?? null,
+          observacao:    i.observacao    || null,
+        },
+      })
+    )
+  );
+
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: undefined };
+}
+
+export async function encerrarTurmaAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = encerrarTurmaSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { turmaId } = parsed.data;
 
   await prisma.$transaction(async (tx) => {
-    await tx.trainingPlan.update({
-      where: { id: planId },
-      data: {
-        status,
-        notes,
-        ...(status === 'IN_PROGRESS' && { startedAt: new Date() }),
-        ...(status === 'COMPLETED'   && { completedAt: new Date() }),
-      },
+    // Mark turma as CONCLUIDA
+    await tx.turma.update({ where: { id: turmaId }, data: { status: 'CONCLUIDA' } });
+
+    // Update PessoaTreinamento status based on attendance
+    const inscricoes = await tx.inscricaoTurma.findMany({
+      where: { turmaId },
+      select: { pessoaTreinamentoId: true, presente: true },
     });
 
-    if (status === 'COMPLETED') {
-      await tx.eventoIntegracao.create({
-        data: {
-          tipo:    'training.completed',
-          payload: { planId, projectId: plan.projectId },
-          origem:  'COLLAB',
-          status:  'PENDENTE',
-        },
-      });
+    for (const i of inscricoes) {
+      if (i.presente === true) {
+        await tx.pessoaTreinamento.update({
+          where: { id: i.pessoaTreinamentoId },
+          data: { status: 'CONCLUIDO' },
+        });
+      } else if (i.presente === false) {
+        await tx.pessoaTreinamento.update({
+          where: { id: i.pessoaTreinamentoId },
+          data: { status: 'AUSENTE' },
+        });
+      }
     }
   });
 
-  return { ok: true, data: { id: planId } };
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: undefined };
 }
 
-export async function generateMatrixFromImpactAction(
-  input: unknown,
-): Promise<ActionResult<{ count: number }>> {
+// ─── Inscrever pessoa em turma ────────────────────────────────────────────────
+
+export async function inscreverPessoaAction(
+  turmaId: string,
+  pessoaTreinamentoId: string
+): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Não autenticado' };
 
-  const parsed = generateMatrixFromImpactSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Dados inválidos', issues: parsed.error.flatten().fieldErrors };
-  }
-
-  const { projectId, impactId } = parsed.data;
-
-  const impact = await prisma.changeImpact.findFirst({
-    where: { id: impactId, projectId, tenantId: session.tenantId, deletedAt: null },
-    select: { id: true, dimension: true, title: true },
-  });
-  if (!impact) return { ok: false, error: 'Impacto não encontrado' };
-
-  const suggestions = TRAINING_CATALOG[impact.dimension] ?? [];
-  if (suggestions.length === 0) return { ok: true, data: { count: 0 } };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.trainingMatrix.createMany({
-      data: suggestions.map((s) => ({
-        tenantId:  session.tenantId,
-        projectId,
-        impactId,
-        title:     `${s.title} — ${impact.title}`,
-        dimension: impact.dimension,
-        durationH: s.durationH,
-        mandatory: true,
-        createdBy: session.userId,
-      })),
-    });
-
-    await tx.eventoIntegracao.create({
-      data: {
-        tipo:    'training.created',
-        payload: { impactId, projectId, count: suggestions.length },
-        origem:  'COLLAB',
-        status:  'PENDENTE',
-      },
-    });
+  await prisma.inscricaoTurma.create({
+    data: { turmaId, pessoaTreinamentoId },
   });
 
-  return { ok: true, data: { count: suggestions.length } };
+  await prisma.pessoaTreinamento.update({
+    where: { id: pessoaTreinamentoId },
+    data: { status: 'INSCRITO' },
+  });
+
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: undefined };
 }
