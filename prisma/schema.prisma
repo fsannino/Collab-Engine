@@ -41,6 +41,7 @@ model Tenant {
   funcoes       Funcao[]
   areas         Area[]
   changeImpacts ChangeImpact[]
+  trainingPlans TrainingPlan[]
 
   @@index([slug])
 }
@@ -133,6 +134,7 @@ model Project {
   members           ProjectMember[]
   changeImpacts     ChangeImpact[]
   stakeholderLinks  ProjectStakeholder[]
+  trainingPlans     TrainingPlan[]
 
   @@index([tenantId])
   @@index([status])
@@ -282,6 +284,7 @@ model Pessoa {
   cargosHistorico PessoaCargo[]
   funcoesAtuais   PessoaFuncao[]
   stakeholders    Stakeholder[]
+  treinamentos    PessoaTreinamento[]
 
   @@index([tenantId])
   @@index([email])
@@ -328,8 +331,9 @@ model Funcao {
   updatedAt DateTime       @updatedAt
   deletedAt DateTime?
 
-  pessoas   PessoaFuncao[]
-  processos FuncaoProcesso[]
+  pessoas     PessoaFuncao[]
+  processos   FuncaoProcesso[]
+  treinamentos FuncaoTreinamento[]
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -506,6 +510,169 @@ model ImpactAcompanhamento {
   changedAt      DateTime      @default(now())
 
   @@index([impactId, changedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// M5 — TREINAMENTO (Sprint 4, Issue 022)
+// ═══════════════════════════════════════════════════════════════
+
+model TrainingPlan {
+  id          String             @id @default(uuid())
+  tenantId    String
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  projectId   String
+  project     Project            @relation(fields: [projectId], references: [id])
+
+  name        String
+  description String?
+  status      TrainingPlanStatus @default(DRAFT)
+
+  startDate   DateTime?
+  endDate     DateTime?
+
+  items       TrainingItem[]
+
+  createdBy   String             // userId
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+enum TrainingPlanStatus {
+  DRAFT
+  APPROVED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model TrainingItem {
+  id          String     @id @default(uuid())
+  planId      String
+  plan        TrainingPlan @relation(fields: [planId], references: [id])
+
+  title       String
+  description String?
+  duration    Int?       // minutos
+  modality    Modality
+
+  funcoes     FuncaoTreinamento[]
+  pessoas     PessoaTreinamento[]
+  turmas      Turma[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  @@index([planId])
+  @@index([deletedAt])
+}
+
+enum Modality {
+  PRESENCIAL
+  ONLINE
+  HIBRIDO
+  AUTOESTUDO
+}
+
+model FuncaoTreinamento {
+  id             String       @id @default(uuid())
+  trainingItemId String
+  trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
+  funcaoId       String
+  funcao         Funcao       @relation(fields: [funcaoId], references: [id])
+
+  obrigatorio    Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  @@unique([trainingItemId, funcaoId])
+}
+
+model PessoaTreinamento {
+  id             String         @id @default(uuid())
+  trainingItemId String
+  trainingItem   TrainingItem   @relation(fields: [trainingItemId], references: [id])
+  pessoaId       String
+  pessoa         Pessoa         @relation(fields: [pessoaId], references: [id])
+
+  derivedFromFuncao Boolean       @default(true)
+  status            TrainingStatus @default(PENDENTE)
+
+  inscricoes     InscricaoTurma[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  @@unique([trainingItemId, pessoaId])
+  @@index([deletedAt])
+}
+
+enum TrainingStatus {
+  PENDENTE
+  INSCRITO
+  EM_ANDAMENTO
+  CONCLUIDO
+  AUSENTE
+  DISPENSADO
+}
+
+model Turma {
+  id             String       @id @default(uuid())
+  trainingItemId String
+  trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
+
+  nome       String
+  dataInicio DateTime
+  dataFim    DateTime
+  modality   Modality
+  local      String?
+  instrutorId String?      // userId
+  capacidade  Int?
+  status      TurmaStatus  @default(AGENDADA)
+
+  inscricoes  InscricaoTurma[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  @@index([trainingItemId])
+  @@index([status])
+  @@index([dataInicio])
+  @@index([deletedAt])
+}
+
+enum TurmaStatus {
+  AGENDADA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+model InscricaoTurma {
+  id                  String            @id @default(uuid())
+  turmaId             String
+  turma               Turma             @relation(fields: [turmaId], references: [id])
+  pessoaTreinamentoId String
+  pessoaTreinamento   PessoaTreinamento @relation(fields: [pessoaTreinamentoId], references: [id])
+
+  presente        Boolean?  // null = não marcado; true = presente; false = ausente
+  notaAvaliacao   Int?      @db.SmallInt // 1-5
+  observacao      String?
+  conviteEnviadoEm DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([turmaId, pessoaTreinamentoId])
+  @@index([turmaId])
 }
 
 // ═══════════════════════════════════════════════════════════════
