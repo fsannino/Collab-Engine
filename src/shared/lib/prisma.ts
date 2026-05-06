@@ -1,1 +1,2 @@
-﻿export { prisma } from '@/lib/prisma';
+// Compatibility shim — canonical path is @/core/prisma/client
+export { prisma } from '@/core/prisma/client';

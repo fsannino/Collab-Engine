@@ -2,14 +2,6 @@
 //
 // Schema inicial com entidades core (Tenant, User, Project, Stakeholder).
 // Módulos M1-M16 são adicionados incrementalmente nos sprints.
-//
-// Convenções:
-// - Multi-tenant via tenantId (ADR-006)
-// - Soft delete com deletedAt + deletedBy (ADR-003)
-// - Escala 5x5 nas entidades de governança (ADR-001)
-// - Cargo separado de Função (ADR-004)
-//
-// Ler skills/prisma-migrations/SKILL.md antes de modificar este arquivo.
 
 generator client {
   provider = "prisma-client-js"
@@ -20,7 +12,7 @@ datasource db {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TENANT (ADR-006)
+// TENANT
 // ═══════════════════════════════════════════════════════════════
 
 model Tenant {
@@ -47,7 +39,7 @@ model Tenant {
 }
 
 enum PlanType {
-  INTERNAL // CollabZ uso interno
+  INTERNAL
   STARTER
   PROFESSIONAL
   ENTERPRISE
@@ -63,7 +55,7 @@ model User {
   tenant       Tenant    @relation(fields: [tenantId], references: [id])
   email        String
   name         String
-  passwordHash String?   // bcrypt; null se SSO externo
+  passwordHash String?
   role         UserRole  @default(EMPLOYEE)
   active       Boolean   @default(true)
   lastLoginAt  DateTime?
@@ -122,19 +114,16 @@ model Project {
   startDate        DateTime?
   targetEndDate    DateTime?
   actualEndDate    DateTime?
-
-  // Referências externas (sistemas integrados)
-  smrProjectId     String?       // ID no SMR Projetos
-
+  smrProjectId     String?
   settings         Json          @default("{}")
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   deletedAt        DateTime?
 
-  members           ProjectMember[]
-  changeImpacts     ChangeImpact[]
-  stakeholderLinks  ProjectStakeholder[]
-  trainingPlans     TrainingPlan[]
+  members          ProjectMember[]
+  changeImpacts    ChangeImpact[]
+  stakeholderLinks ProjectStakeholder[]
+  trainingPlans    TrainingPlan[]
 
   @@index([tenantId])
   @@index([status])
@@ -192,7 +181,7 @@ enum ProjectMemberRole {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// STAKEHOLDER (M2 — Sprint 3)
+// STAKEHOLDER (M2)
 // ═══════════════════════════════════════════════════════════════
 
 enum StakeholderLevel {
@@ -217,18 +206,16 @@ model Stakeholder {
   tenant            Tenant             @relation(fields: [tenantId], references: [id])
   name              String
   email             String?
-  hrisId            String?            // ID externo no HRIS
-  position          String?            // cargo/posição (texto livre)
+  hrisId            String?
+  position          String?
   organizationLevel StakeholderLevel?
-
-  pessoaId          String?            // FK para Pessoa (se também for cadastrada)
+  pessoaId          String?
   pessoa            Pessoa?            @relation(fields: [pessoaId], references: [id])
-
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   deletedAt         DateTime?
 
-  projectLinks      ProjectStakeholder[]
+  projectLinks ProjectStakeholder[]
 
   @@index([tenantId])
   @@index([deletedAt])
@@ -240,21 +227,16 @@ model ProjectStakeholder {
   project       Project             @relation(fields: [projectId], references: [id])
   stakeholderId String
   stakeholder   Stakeholder         @relation(fields: [stakeholderId], references: [id])
-
   position      StakeholderPosition
-  influence     Int                 @db.SmallInt  // 1-5
-  interest      Int                 @db.SmallInt  // 1-5
-
+  influence     Int                 @db.SmallInt
+  interest      Int                 @db.SmallInt
   notes             String?
   lastContactDate   DateTime?
-
-  // ADKAR scores (0-5 por dimensão)
-  adkarA            Int?     @db.SmallInt  // Awareness
-  adkarD            Int?     @db.SmallInt  // Desire
-  adkarK            Int?     @db.SmallInt  // Knowledge
-  adkarAb           Int?     @db.SmallInt  // Ability
-  adkarR            Int?     @db.SmallInt  // Reinforcement
-
+  adkarA            Int?     @db.SmallInt
+  adkarD            Int?     @db.SmallInt
+  adkarK            Int?     @db.SmallInt
+  adkarAb           Int?     @db.SmallInt
+  adkarR            Int?     @db.SmallInt
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   deletedAt         DateTime?
@@ -267,7 +249,7 @@ model ProjectStakeholder {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PESSOA, CARGO, FUNÇÃO (ADR-004 — esqueleto, detalhes em sprint-4)
+// PESSOA, CARGO, FUNÇÃO
 // ═══════════════════════════════════════════════════════════════
 
 model Pessoa {
@@ -314,7 +296,7 @@ model PessoaCargo {
   cargoId    String
   cargo      Cargo     @relation(fields: [cargoId], references: [id])
   dataInicio DateTime
-  dataFim    DateTime? // null = vigente
+  dataFim    DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([pessoaId, dataFim])
@@ -357,11 +339,8 @@ model FuncaoProcesso {
   id              String          @id @default(uuid())
   funcaoId        String
   funcao          Funcao          @relation(fields: [funcaoId], references: [id])
-
-  // Referência externa: processo vive no XPROC
   xprocProcessoId String
-
-  papel           PapelNoProcesso // RACI
+  papel           PapelNoProcesso
   observacao      String?
   createdAt       DateTime        @default(now())
   deletedAt       DateTime?
@@ -378,7 +357,7 @@ enum PapelNoProcesso {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AREA (estrutura organizacional — esqueleto)
+// AREA
 // ═══════════════════════════════════════════════════════════════
 
 model Area {
@@ -386,10 +365,9 @@ model Area {
   tenantId String
   tenant   Tenant  @relation(fields: [tenantId], references: [id])
   nome     String
-  parentId String? // hierarquia organizacional
+  parentId String?
   parent   Area?   @relation("AreaHierarchy", fields: [parentId], references: [id])
   children Area[]  @relation("AreaHierarchy")
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
@@ -401,7 +379,7 @@ model Area {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CHANGE IMPACT (M3 — Gestão de Mudança Organizacional, Sprint 2)
+// CHANGE IMPACT (M3)
 // ═══════════════════════════════════════════════════════════════
 
 enum ImpactDimension {
@@ -439,24 +417,20 @@ model ChangeImpact {
   description   String?
   dimension     ImpactDimension
   status        ImpactStatus    @default(DRAFT)
-
-  // 5x5 scoring: severityScore × extentScore = score (ADR-001)
-  severityScore Int             // 1-5: quão grave é o impacto
-  extentScore   Int             // 1-5: quantas pessoas/áreas afeta
-  score         Int             // computed: severityScore × extentScore
-
+  severityScore Int
+  extentScore   Int
+  score         Int
   mitigation    String?
-
-  createdBy     String          // userId
-  updatedBy     String?         // userId
+  createdBy     String
+  updatedBy     String?
   deletedAt     DateTime?
-  deletedBy     String?         // userId
+  deletedBy     String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  activities      ImpactActivity[]
-  areas           ImpactArea[]
-  acompanhamentos ImpactAcompanhamento[]
+  activities       ImpactActivity[]
+  areas            ImpactArea[]
+  acompanhamentos  ImpactAcompanhamento[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -473,8 +447,8 @@ model ImpactActivity {
   description   String?
   status        ActivityStatus @default(PENDING)
   dueDate       DateTime?
-  assignedTo    String?        // userId
-  smrActivityId String?        @unique // ID no SMR Projetos (Issue 017)
+  assignedTo    String?
+  smrActivityId String?        @unique
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   deletedAt     DateTime?
@@ -506,7 +480,7 @@ model ImpactAcompanhamento {
   previousScore  Int?
   newScore       Int
   note           String?
-  changedBy      String        // userId
+  changedBy      String
   changedAt      DateTime      @default(now())
 
   @@index([impactId, changedAt])
@@ -681,10 +655,10 @@ model InscricaoTurma {
 
 model SmrWebhookLog {
   id          String    @id @default(uuid())
-  eventId     String    @unique // SMR-generated event ID (idempotency key)
-  activityId  String?           // ImpactActivity.id resolvido
-  payload     Json              // payload recebido
-  status      String    @default("RECEIVED") // RECEIVED/PROCESSING/PROCESSED/FAILED/IGNORED
+  eventId     String    @unique
+  activityId  String?
+  payload     Json
+  status      String    @default("RECEIVED")
   error       String?
   processedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -695,19 +669,19 @@ model SmrWebhookLog {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// EVENTO INTEGRACAO (cron-based event bus — ADR-002)
+// EVENTO INTEGRACAO
 // ═══════════════════════════════════════════════════════════════
 
 model EventoIntegracao {
-  id          String        @id @default(uuid())
-  tipo        String        // ex: "impacto.criado", "treinamento.concluido"
+  id          String         @id @default(uuid())
+  tipo        String
   payload     Json
-  origem      SistemaOrigem // SMR, XPROC, COLLAB
-  destino     SistemaOrigem? // null = broadcast
-  status      StatusEvento  @default(PENDENTE)
-  tentativas  Int           @default(0)
+  origem      SistemaOrigem
+  destino     SistemaOrigem?
+  status      StatusEvento   @default(PENDENTE)
+  tentativas  Int            @default(0)
   ultimoErro  String?
-  createdAt   DateTime      @default(now())
+  createdAt   DateTime       @default(now())
   processedAt DateTime?
 
   @@index([status, createdAt])
