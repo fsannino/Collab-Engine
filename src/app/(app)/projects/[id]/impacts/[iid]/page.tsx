@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { ActivityStatus } from '@prisma/client';
 import { getSession } from '@/core/auth/session';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { calculateZone, zoneBgColor, zoneLabel } from '@/shared/governance/scori
 
 const DIMENSION_LABEL: Record<string, string> = {
   PROCESS: 'Processo', PEOPLE: 'Pessoas', TECHNOLOGY: 'Tecnologia',
-  STRUCTURE: 'Estrutura', CULTURE: 'Cultura', POLICY: 'PolÃ­ticas', METRICS: 'MÃ©tricas',
+  STRUCTURE: 'Estrutura', CULTURE: 'Cultura', POLICY: 'PolÃƒÆ’Ã‚Â­ticas', METRICS: 'MÃƒÆ’Ã‚Â©tricas',
 };
 
 type Props = { params: Promise<{ id: string; iid: string }> };
@@ -69,7 +70,7 @@ export default async function ImpactDetailPage({ params }: Props) {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-600">{DIMENSION_LABEL[impact.dimension]}</span>
               <ImpactStatusBadge status={impact.status} size="sm" />
-              <span className="text-xs text-gray-400">Sev {impact.severityScore} Ã— Ext {impact.extentScore}</span>
+              <span className="text-xs text-gray-400">Sev {impact.severityScore} ÃƒÆ’Ã¢â‚¬â€ Ext {impact.extentScore}</span>
             </div>
           </div>
         </div>
@@ -80,23 +81,23 @@ export default async function ImpactDetailPage({ params }: Props) {
         <section className="rounded-lg border border-gray-200 bg-white p-5 space-y-4">
           {impact.description && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-1">DescriÃ§Ã£o</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-1">DescriÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o</h2>
               <p className="text-sm text-gray-600 whitespace-pre-line">{impact.description}</p>
             </div>
           )}
           {impact.mitigation && (
             <div>
-              <h2 className="text-sm font-semibold text-gray-700 mb-1">Plano de MitigaÃ§Ã£o</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-1">Plano de MitigaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o</h2>
               <p className="text-sm text-gray-600 whitespace-pre-line">{impact.mitigation}</p>
             </div>
           )}
         </section>
       )}
 
-      {/* Heatmap â€” shown when project has multiple impacts */}
+      {/* Heatmap ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â shown when project has multiple impacts */}
       {peers.length > 1 && (
         <section className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">PosiÃ§Ã£o no Projeto</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">PosiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o no Projeto</h2>
           <HeatmapMatrix entityType="impact" data={Array.from(cellMap.values())} size="sm" />
         </section>
       )}
@@ -104,14 +105,14 @@ export default async function ImpactDetailPage({ params }: Props) {
       {/* Activities */}
       <section className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Atividades de MitigaÃ§Ã£o
+          Atividades de MitigaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o
           <span className="ml-2 text-gray-400 font-normal">({impact.activities.length})</span>
         </h2>
         {impact.activities.length === 0 ? (
           <p className="text-sm text-gray-400 italic">Nenhuma atividade vinculada.</p>
         ) : (
           <ul className="space-y-2">
-            {impact.activities.map((a: { id: string; title: string; description: string | null; status: string }) => (
+            {impact.activities.map((a: { id: string; title: string; description: string | null; status: ActivityStatus }) => (
               <li key={a.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">{a.title}</p>
@@ -127,7 +128,7 @@ export default async function ImpactDetailPage({ params }: Props) {
       {/* Areas */}
       {impact.areas.length > 0 && (
         <section className="rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Ãreas Afetadas</h2>
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">ÃƒÆ’Ã‚Âreas Afetadas</h2>
           <div className="flex flex-wrap gap-2">
             {impact.areas.map((ia) => (
               <span key={ia.id} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">{ia.area.nome}</span>
@@ -148,7 +149,7 @@ export default async function ImpactDetailPage({ params }: Props) {
       </section>
 
       <Link href={`/projects/${projectId}/impacts`} className="inline-block px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
-        â† Voltar
+        ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Voltar
       </Link>
     </div>
   );
