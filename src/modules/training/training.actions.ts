@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { resend } from '@/lib/resend';
+import { buildTrainingInviteEmail } from '@/emails/training-invite';
 import type { ActionResult } from '@/shared/types/action-result';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -165,6 +167,81 @@ export async function encerrarTurmaAction(raw: unknown): Promise<ActionResult<vo
 
   revalidatePath(`/training/turmas/${turmaId}`);
   return { ok: true, data: undefined };
+}
+
+// ─── Convites por e-mail (Issue 024) ─────────────────────────────────────────
+
+export async function sendInvitationsAction(turmaId: string): Promise<ActionResult<{ sent: number; skipped: number }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, error: 'RESEND_API_KEY não configurada. Adicione a chave nas variáveis de ambiente.' };
+  }
+
+  const turma = await prisma.turma.findFirst({
+    where: { id: turmaId, deletedAt: null },
+    include: {
+      trainingItem: {
+        select: {
+          title: true,
+          plan: { select: { id: true, tenantId: true, name: true } },
+        },
+      },
+      inscricoes: {
+        where: { conviteEnviadoEm: null },
+        include: {
+          pessoaTreinamento: {
+            include: { pessoa: { select: { nome: true, email: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  if (!turma) return { ok: false, error: 'Turma não encontrada' };
+  if (turma.trainingItem.plan.tenantId !== session.tenantId) return { ok: false, error: 'Acesso negado' };
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://engine.collabz.com.br';
+  const planUrl = `${appUrl}/training/plans/${turma.trainingItem.plan.id}`;
+
+  const pending = turma.inscricoes.filter((i) => i.pessoaTreinamento.pessoa.email);
+  const skipped = turma.inscricoes.length - pending.length;
+
+  let sent = 0;
+  for (const inscricao of pending) {
+    const pessoa = inscricao.pessoaTreinamento.pessoa;
+    if (!pessoa.email) continue;
+
+    const { subject, html } = buildTrainingInviteEmail({
+      pessoaNome:         pessoa.nome,
+      treinamentoTitulo:  turma.trainingItem.title,
+      turmaNome:          turma.nome,
+      dataInicio:         turma.dataInicio,
+      dataFim:            turma.dataFim,
+      local:              turma.local,
+      modality:           turma.modality,
+      planUrl,
+    });
+
+    const { error } = await resend.emails.send({
+      from:    'Collab Engine <treinamentos@collabz.com.br>',
+      to:      pessoa.email,
+      subject,
+      html,
+    });
+
+    if (!error) {
+      await prisma.inscricaoTurma.update({
+        where: { id: inscricao.id },
+        data:  { conviteEnviadoEm: new Date() },
+      });
+      sent++;
+    }
+  }
+
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: { sent, skipped } };
 }
 
 // ─── Inscrever pessoa em turma ────────────────────────────────────────────────

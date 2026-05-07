@@ -28,12 +28,20 @@ export default async function ProjectTrainingPage({ params }: Props) {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Treinamento</h1>
-        <Link
-          href={`/training/plans/new?projectId=${projectId}`}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-        >
-          + Novo Plano
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href={`/projects/${projectId}/training/dashboard`}
+            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href={`/training/plans/new?projectId=${projectId}`}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+          >
+            + Novo Plano
+          </Link>
+        </div>
       </div>
 
       {plans.length === 0 ? (
