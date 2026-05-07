@@ -6,7 +6,11 @@
 -- Drop old Sprint 2/3 training schema (replaced by Sprint 4)
 DROP TABLE IF EXISTS "TrainingPlan" CASCADE;
 DROP TABLE IF EXISTS "TrainingMatrix" CASCADE;
+-- Drop all enums (old and partially-created) before recreating
 DROP TYPE IF EXISTS "TrainingStatus";
+DROP TYPE IF EXISTS "TrainingPlanStatus";
+DROP TYPE IF EXISTS "Modality";
+DROP TYPE IF EXISTS "TurmaStatus";
 
 CREATE TYPE "TrainingPlanStatus" AS ENUM ('DRAFT', 'APPROVED', 'ACTIVE', 'COMPLETED', 'CANCELLED');
 CREATE TYPE "Modality" AS ENUM ('PRESENCIAL', 'ONLINE', 'HIBRIDO', 'AUTOESTUDO');
