@@ -169,6 +169,142 @@ export async function encerrarTurmaAction(raw: unknown): Promise<ActionResult<vo
   return { ok: true, data: undefined };
 }
 
+// ─── Geração automática de plano (Issue 023) ─────────────────────────────────
+
+const generatePlanSchema = z.object({
+  projectId: z.string().uuid(),
+  name:      z.string().min(3).max(200),
+});
+
+export async function generateTrainingPlanAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = generatePlanSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { projectId, name } = parsed.data;
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, tenantId: session.tenantId, deletedAt: null },
+  });
+  if (!project) return { ok: false, error: 'Projeto não encontrado' };
+
+  // Funções ativas no tenant com pelo menos 1 pessoa ativa
+  const funcoes = await prisma.funcao.findMany({
+    where: {
+      tenantId: session.tenantId,
+      deletedAt: null,
+      pessoas: { some: { dataFim: null } },
+    },
+    include: {
+      pessoas: {
+        where: { dataFim: null },
+        include: { pessoa: { select: { id: true, deletedAt: true } } },
+      },
+    },
+  });
+
+  if (funcoes.length === 0) {
+    return { ok: false, error: 'Nenhuma função com pessoas ativas encontrada. Cadastre Funções e vincule Pessoas antes de gerar o plano.' };
+  }
+
+  const plan = await prisma.$transaction(async (tx) => {
+    const newPlan = await tx.trainingPlan.create({
+      data: {
+        tenantId:  session.tenantId,
+        projectId,
+        name,
+        createdBy: session.userId,
+      },
+    });
+
+    for (const funcao of funcoes) {
+      const pessoasAtivas = funcao.pessoas.filter((pf) => !pf.pessoa.deletedAt);
+      if (pessoasAtivas.length === 0) continue;
+
+      const item = await tx.trainingItem.create({
+        data: {
+          planId:   newPlan.id,
+          title:    `Treinamento — ${funcao.nome}`,
+          modality: 'PRESENCIAL',
+        },
+      });
+
+      await tx.funcaoTreinamento.create({
+        data: { trainingItemId: item.id, funcaoId: funcao.id },
+      });
+
+      await tx.pessoaTreinamento.createMany({
+        data: pessoasAtivas.map((pf) => ({
+          trainingItemId:    item.id,
+          pessoaId:          pf.pessoa.id,
+          derivedFromFuncao: true,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return newPlan;
+  });
+
+  revalidatePath(`/projects/${projectId}/training`);
+  revalidatePath('/training/plans');
+  return { ok: true, data: { id: plan.id } };
+}
+
+// ─── Remover/adicionar PessoaTreinamento manualmente ─────────────────────────
+
+const togglePessoaSchema = z.object({
+  trainingItemId: z.string().uuid(),
+  pessoaId:       z.string().uuid(),
+});
+
+export async function addPessoaTreinamentoAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = togglePessoaSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { trainingItemId, pessoaId } = parsed.data;
+
+  // Verify tenant ownership
+  const item = await prisma.trainingItem.findFirst({
+    where: { id: trainingItemId, deletedAt: null },
+    include: { plan: { select: { tenantId: true, id: true } } },
+  });
+  if (!item || item.plan.tenantId !== session.tenantId) return { ok: false, error: 'Não encontrado' };
+
+  await prisma.pessoaTreinamento.upsert({
+    where:  { trainingItemId_pessoaId: { trainingItemId, pessoaId } },
+    update: { deletedAt: null },
+    create: { trainingItemId, pessoaId, derivedFromFuncao: false },
+  });
+
+  revalidatePath(`/training/plans/${item.plan.id}`);
+  return { ok: true, data: undefined };
+}
+
+export async function removePessoaTreinamentoAction(id: string): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const pt = await prisma.pessoaTreinamento.findFirst({
+    where: { id },
+    include: { trainingItem: { include: { plan: { select: { tenantId: true, id: true } } } } },
+  });
+  if (!pt || pt.trainingItem.plan.tenantId !== session.tenantId) return { ok: false, error: 'Não encontrado' };
+
+  await prisma.pessoaTreinamento.update({
+    where: { id },
+    data:  { deletedAt: new Date() },
+  });
+
+  revalidatePath(`/training/plans/${pt.trainingItem.plan.id}`);
+  return { ok: true, data: undefined };
+}
+
 // ─── Convites por e-mail (Issue 024) ─────────────────────────────────────────
 
 export async function sendInvitationsAction(turmaId: string): Promise<ActionResult<{ sent: number; skipped: number }>> {

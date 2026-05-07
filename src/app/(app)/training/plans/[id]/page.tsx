@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { PeoplePanel } from './_people-panel';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT:     'Rascunho',
@@ -50,12 +51,19 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
       items: {
         where: { deletedAt: null },
         include: {
+          funcoes: {
+            include: { funcao: { select: { nome: true } } },
+          },
+          pessoas: {
+            where: { deletedAt: null },
+            include: { pessoa: { select: { id: true, nome: true, email: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
           turmas: {
             where: { deletedAt: null },
             include: { _count: { select: { inscricoes: true } } },
             orderBy: { dataInicio: 'asc' },
           },
-          _count: { select: { pessoas: true, funcoes: true } },
         },
         orderBy: { createdAt: 'asc' },
       },
@@ -76,9 +84,19 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
             <h1 className="text-2xl font-bold text-gray-900">{plan.name}</h1>
             {plan.description && <p className="text-sm text-gray-500 mt-1">{plan.description}</p>}
           </div>
-          <span className="text-xs rounded-full px-2.5 py-1 font-medium bg-blue-100 text-blue-700">
-            {STATUS_LABEL[plan.status] ?? plan.status}
-          </span>
+          <div className="flex items-center gap-2">
+            {plan.project && (
+              <Link
+                href={`/projects/${plan.project.id}/training/dashboard`}
+                className="text-xs border border-gray-300 rounded-lg px-2.5 py-1 text-gray-600 hover:bg-gray-50"
+              >
+                Dashboard
+              </Link>
+            )}
+            <span className="text-xs rounded-full px-2.5 py-1 font-medium bg-blue-100 text-blue-700">
+              {STATUS_LABEL[plan.status] ?? plan.status}
+            </span>
+          </div>
         </div>
         <div className="mt-2 flex gap-4 text-xs text-gray-500">
           {plan.project && (
@@ -103,17 +121,41 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
         <div className="space-y-4">
           {plan.items.map((item) => (
             <div key={item.id} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-start justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-800">{item.title}</h2>
-                  {item.description && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
-                  <div className="mt-1 flex gap-3 text-xs text-gray-500">
-                    <span>{MODALITY_LABEL[item.modality] ?? item.modality}</span>
-                    {item.duration && <span>{item.duration} min</span>}
-                    <span>{item._count.pessoas} pessoa{item._count.pessoas !== 1 ? 's' : ''}</span>
-                    <span>{item._count.funcoes} função/funções</span>
+              {/* Item header */}
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-800">{item.title}</h2>
+                    {item.description && <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>}
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-gray-500">
+                      <span>{MODALITY_LABEL[item.modality] ?? item.modality}</span>
+                      {item.duration && <span>{item.duration} min</span>}
+                      {item.funcoes.length > 0 && (
+                        <span className="text-blue-600">
+                          Funções: {item.funcoes.map((f) => f.funcao.nome).join(', ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              {/* People */}
+              <div className="px-5 py-3 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Pessoas designadas ({item.pessoas.length})
+                  </h3>
+                </div>
+                <PeoplePanel
+                  trainingItemId={item.id}
+                  pessoas={item.pessoas.map((p) => ({
+                    ptId:              p.id,
+                    nome:              p.pessoa.nome,
+                    email:             p.pessoa.email,
+                    derivedFromFuncao: p.derivedFromFuncao,
+                  }))}
+                />
               </div>
 
               {/* Turmas */}
