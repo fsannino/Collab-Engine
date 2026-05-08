@@ -1,6 +1,6 @@
 'use client';
 
-import type { OcaiValores } from './cultura.actions';
+import type { OcaiValores } from './cultura.utils';
 
 const SIZE = 260;
 const CX = SIZE / 2;
@@ -23,7 +23,7 @@ function valToR(val: number) {
 
 function polygon(vals: OcaiValores) {
   return TIPOS.map((t, i) => {
-    const { x, y } = toXY(ANGLES[i], valToR(vals[t]));
+    const { x, y } = toXY(ANGLES[i]!, valToR(vals[t]));
     return `${x},${y}`;
   }).join(' ');
 }
@@ -49,7 +49,7 @@ export default function RadarChart({
         ))}
         {/* Axes */}
         {TIPOS.map((_, i) => {
-          const { x, y } = toXY(ANGLES[i], R);
+          const { x, y } = toXY(ANGLES[i]!, R);
           return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#e2e8f0" strokeWidth="1" />;
         })}
         {/* Desejado polygon */}
@@ -69,12 +69,12 @@ export default function RadarChart({
         />
         {/* Dots atual */}
         {TIPOS.map((t, i) => {
-          const { x, y } = toXY(ANGLES[i], valToR(atual[t]));
+          const { x, y } = toXY(ANGLES[i]!, valToR(atual[t]));
           return <circle key={t} cx={x} cy={y} r={4} fill="#0f2244" />;
         })}
         {/* Labels */}
         {TIPOS.map((_, i) => {
-          const { x, y } = toXY(ANGLES[i], R + 18);
+          const { x, y } = toXY(ANGLES[i]!, R + 18);
           return (
             <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize="11" fill="#374151" fontFamily="system-ui">
               {LABELS[i]}

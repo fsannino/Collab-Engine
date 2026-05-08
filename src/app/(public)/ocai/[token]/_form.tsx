@@ -25,7 +25,7 @@ function initValues(dimensoes: readonly Dimensao[], tipos: readonly TipoCultura[
     const r: Record<string, DimValues> = {};
     for (const d of dimensoes) {
       r[d.id] = {};
-      for (const t of tipos) r[d.id][t.id] = 25;
+      for (const t of tipos) r[d.id]![t.id] = 25;
     }
     return r;
   };
@@ -44,8 +44,8 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const dim = dimensoes[dimIdx];
-  const vals = values[momento][dim.id];
+  const dim = dimensoes[dimIdx]!;
+  const vals = values[momento][dim.id]!;
   const total = soma(vals);
   const isLastDim = dimIdx === dimensoes.length - 1;
   const isLastMomento = momento === 'DESEJADO';
@@ -167,7 +167,7 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       type="button"
-                      onClick={() => change(tipo.id, String(Math.max(0, vals[tipo.id] - 5)))}
+                      onClick={() => change(tipo.id, String(Math.max(0, (vals[tipo.id] ?? 0) - 5)))}
                       style={{ width: '28px', height: '28px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >−</button>
                     <input
@@ -180,7 +180,7 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
                     />
                     <button
                       type="button"
-                      onClick={() => change(tipo.id, String(Math.min(100, vals[tipo.id] + 5)))}
+                      onClick={() => change(tipo.id, String(Math.min(100, (vals[tipo.id] ?? 0) + 5)))}
                       style={{ width: '28px', height: '28px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >+</button>
                   </div>
