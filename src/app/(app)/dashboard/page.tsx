@@ -15,6 +15,7 @@ const modules = [
   { href: '/cultura', label: 'Cultura Org.', description: 'M — Avaliação OCAI de cultura organizacional', icon: '🧭' },
   { href: '/lideranca', label: 'Liderança', description: 'M7 — Leadership Console com avaliação ADKAR', icon: '👥' },
   { href: '/cmo', label: 'CMO', description: 'M11 — Change Management Office, visão executiva OCM', icon: '📊' },
+  { href: '/bridge', label: 'Bridge', description: 'Monitor de integração cross-sistema SMR ↔ Collab ↔ XPROC', icon: '🔗' },
 ]
 
 export default async function DashboardPage() {

@@ -16,6 +16,7 @@ const navItems = [
   { href: '/cultura', label: 'Cultura Org.' },
   { href: '/lideranca', label: 'Liderança' },
   { href: '/cmo', label: 'CMO' },
+  { href: '/bridge', label: 'Bridge' },
 ]
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
