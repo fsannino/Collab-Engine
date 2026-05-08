@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { getOcaiAreaScope, buildAreaFilter } from '@/lib/ocai/manager-scope';
 
 export const metadata = { title: 'Cultura Organizacional — Collab Engine' };
 
@@ -25,8 +26,11 @@ export default async function CulturaPage() {
   const session = await getSession();
   if (!session) redirect('/login');
 
+  const scope      = await getOcaiAreaScope(session);
+  const areaFilter = buildAreaFilter(scope);
+
   const avaliacoes = await prisma.avaliacaoCultura.findMany({
-    where: { tenantId: session.tenantId, deletedAt: null },
+    where: { tenantId: session.tenantId, deletedAt: null, ...areaFilter },
     include: {
       project: { select: { name: true } },
       area:    { select: { nome: true } },

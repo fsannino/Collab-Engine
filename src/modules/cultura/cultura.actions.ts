@@ -7,7 +7,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { resend } from '@/lib/resend';
 import type { ActionResult } from '@/shared/types/action-result';
-import { DIMENSOES } from './cultura.utils';
+import { DIMENSOES, calcularResultado } from './cultura.utils';
 import { hashIp } from '@/lib/ocai/engine';
 
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab Engine <noreply@collabz.com.br>';
@@ -33,8 +33,11 @@ const convidarSchema = z.object({
 });
 
 const respostaSchema = z.object({
-  token:   z.string().uuid(),
-  consent: z.literal(true),
+  token:         z.string().uuid(),
+  consent:       z.literal(true),
+  cargoSnapshot: z.string().max(200).optional(),
+  areaSnapshot:  z.string().max(200).optional(),
+  tempoEmpresa:  z.enum(['<1 ano', '1-3 anos', '3-5 anos', '>5 anos']).optional(),
   respostas: z.record(z.string(), z.object({
     atual:    z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
     desejado: z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
@@ -91,6 +94,34 @@ export async function encerrarAvaliacaoAction(id: string): Promise<ActionResult<
     where: { id, tenantId: session.tenantId },
     data: { status: 'ENCERRADA' },
   });
+
+  // Emit bridge event — fire-and-forget, don't block the response
+  void (async () => {
+    try {
+      const av = await prisma.avaliacaoCultura.findFirst({
+        where: { id },
+        include: { respostas: true },
+      });
+      if (!av) return;
+      const resultado = calcularResultado(av.respostas);
+      await prisma.eventoIntegracao.create({
+        data: {
+          tipo:    'cultural_assessment.survey.completed',
+          payload: {
+            avaliacaoId:      id,
+            tenantId:         session.tenantId,
+            projectId:        av.projectId ?? null,
+            areaId:           av.areaId    ?? null,
+            totalRespostas:   resultado.totalRespostas,
+            geral:            resultado.geral,
+            dataEncerramento: new Date().toISOString(),
+          },
+          origem: 'COLLAB',
+          status: 'PENDENTE',
+        },
+      });
+    } catch { /* non-critical */ }
+  })();
 
   revalidatePath(`/cultura/${id}`);
   return { ok: true, data: undefined };
@@ -156,6 +187,66 @@ export async function convidarRespondentesAction(raw: unknown): Promise<ActionRe
   return { ok: true, data: undefined };
 }
 
+const batchConviteSchema = z.object({
+  avaliacaoId: z.string().uuid(),
+  linhas: z.array(
+    z.object({
+      nome:  z.string().min(2).max(200),
+      email: z.string().email(),
+    }),
+  ).min(1).max(200),
+});
+
+export async function convidarEmLoteAction(raw: unknown): Promise<ActionResult<{ criados: number; duplicados: number }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = batchConviteSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { avaliacaoId, linhas } = parsed.data;
+
+  const avaliacao = await prisma.avaliacaoCultura.findFirst({
+    where: { id: avaliacaoId, tenantId: session.tenantId, deletedAt: null },
+  });
+  if (!avaliacao) return { ok: false, error: 'Avaliação não encontrada' };
+
+  // Fetch already-invited emails for dedup
+  const existing = await prisma.conviteOcai.findMany({
+    where: { avaliacaoId },
+    select: { email: true },
+  });
+  const existingEmails = new Set(existing.map((c) => c.email.toLowerCase()));
+
+  const novos = linhas.filter((l) => !existingEmails.has(l.email.toLowerCase()));
+  if (novos.length === 0) return { ok: true, data: { criados: 0, duplicados: linhas.length } };
+
+  // Create invites in bulk
+  const convites = await prisma.$transaction(
+    novos.map((l) =>
+      prisma.conviteOcai.create({
+        data: { avaliacaoId, nome: l.nome, email: l.email },
+      }),
+    ),
+  );
+
+  // Send invite emails (fire-and-forget per convite)
+  const link = (token: string) => `${APP_URL}/ocai/${token}`;
+  for (let i = 0; i < convites.length; i++) {
+    const c = convites[i]!;
+    const l = novos[i]!;
+    resend.emails.send({
+      from: EMAIL_FROM,
+      to: c.email,
+      subject: `Convite para avaliação de cultura: ${avaliacao.nome}`,
+      html: `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px"><h2 style="color:#0f2244">Olá, ${l.nome}!</h2><p style="color:#475569;font-size:14px">Você foi convidado(a) para a avaliação <strong>${avaliacao.nome}</strong>. O questionário leva cerca de 5 minutos.</p><a href="${link(c.token)}" style="display:inline-block;background:#0f2244;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600">Responder →</a></div>`,
+    }).catch(() => {});
+  }
+
+  revalidatePath(`/cultura/${avaliacaoId}`);
+  return { ok: true, data: { criados: novos.length, duplicados: linhas.length - novos.length } };
+}
+
 export async function removerConviteAction(conviteId: string): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Não autenticado' };
@@ -218,9 +309,12 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
   const parsed = respostaSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: 'Dados inválidos' };
 
-  const { token, respostas } = parsed.data;
+  const { token, respostas, cargoSnapshot, areaSnapshot, tempoEmpresa } = parsed.data;
 
-  const convite = await prisma.conviteOcai.findUnique({ where: { token } });
+  const convite = await prisma.conviteOcai.findUnique({
+    where: { token },
+    include: { avaliacao: { select: { tenantId: true } } },
+  });
   if (!convite) return { ok: false, error: 'Link inválido ou expirado' };
   if (convite.respondidoEm) return { ok: false, error: 'Este convite já foi respondido' };
   if (convite.status === 'OPTADO_OUT') return { ok: false, error: 'Participação recusada para este link' };
@@ -244,11 +338,14 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
   await prisma.$transaction([
     prisma.respostaOcai.create({
       data: {
-        avaliacaoId: convite.avaliacaoId,
-        conviteId:   convite.id,
-        respostas:   respostas as object,
+        avaliacaoId:   convite.avaliacaoId,
+        conviteId:     convite.id,
+        respostas:     respostas as object,
         ipHash,
         userAgent,
+        cargoSnapshot: cargoSnapshot ?? null,
+        areaSnapshot:  areaSnapshot  ?? null,
+        tempoEmpresa:  tempoEmpresa  ?? null,
       },
     }),
     prisma.conviteOcai.update({
@@ -256,6 +353,26 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
       data:  { respondidoEm: now, consentAt: now, status: 'CONCLUIDO' },
     }),
   ]);
+
+  // Emit bridge event for live monitor (fire-and-forget)
+  void (async () => {
+    try {
+      const total = await prisma.respostaOcai.count({ where: { avaliacaoId: convite.avaliacaoId } });
+      await prisma.eventoIntegracao.create({
+        data: {
+          tipo:    'cultural_assessment.response.submitted',
+          payload: {
+            avaliacaoId:    convite.avaliacaoId,
+            tenantId:       convite.avaliacao.tenantId,
+            conviteId:      convite.id,
+            totalRespostas: total,
+          },
+          origem: 'COLLAB',
+          status: 'PENDENTE',
+        },
+      });
+    } catch { /* non-critical */ }
+  })();
 
   return { ok: true, data: undefined };
 }

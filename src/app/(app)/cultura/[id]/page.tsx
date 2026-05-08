@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { calcularResultado, calcularMediaGeral, DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.utils';
 import RadarChart from '@/modules/cultura/RadarChart';
 import AvaliacaoControles from './_controles';
+import { getOcaiAreaScope } from '@/lib/ocai/manager-scope';
 
 const STATUS_LABEL: Record<string, string> = { RASCUNHO: 'Rascunho', ATIVA: 'Ativa', ENCERRADA: 'Encerrada' };
 const STATUS_COLOR: Record<string, React.CSSProperties> = {
@@ -28,6 +29,10 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
     },
   });
   if (!av) notFound();
+
+  // ManagerScope: non-admin users can only view surveys for their own area
+  const scope = await getOcaiAreaScope(session);
+  if (scope && av.areaId !== scope) notFound();
 
   // Fetch area and company averages in parallel for radar comparison
   const [areaRespostas, empresaRespostas] = await Promise.all([

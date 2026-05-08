@@ -16,8 +16,11 @@ type Props = {
   tiposCultura: readonly TipoCultura[];
 };
 
-type Step   = 'consent' | 'questionnaire' | 'done' | 'optedout';
+type Step    = 'consent' | 'demographics' | 'questionnaire' | 'done' | 'optedout';
 type Momento = 'ATUAL' | 'DESEJADO';
+
+const TEMPO_OPTIONS = ['<1 ano', '1-3 anos', '3-5 anos', '>5 anos'] as const;
+type TempoEmpresa = typeof TEMPO_OPTIONS[number];
 
 type DimValues = Record<string, number>;
 type AllValues = { ATUAL: Record<string, DimValues>; DESEJADO: Record<string, DimValues> };
@@ -39,8 +42,11 @@ function soma(vals: DimValues): number {
 }
 
 export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes, tiposCultura }: Props) {
-  const [step, setStep]     = useState<Step>('consent');
+  const [step, setStep]       = useState<Step>('consent');
   const [checked, setChecked] = useState(false);
+  const [cargo, setCargo]     = useState('');
+  const [area, setArea]       = useState('');
+  const [tempo, setTempo]     = useState<TempoEmpresa | ''>('');
   const [values, setValues] = useState<AllValues>(() => initValues(dimensoes, tiposCultura));
   const [momento, setMomento] = useState<Momento>('ATUAL');
   const [dimIdx, setDimIdx] = useState(0);
@@ -90,7 +96,14 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
       respostas[d.id] = { atual: values.ATUAL[d.id]!, desejado: values.DESEJADO[d.id]! };
     }
     startTransition(async () => {
-      const res = await responderOcaiAction({ token, consent: true, respostas });
+      const res = await responderOcaiAction({
+        token,
+        consent: true,
+        respostas,
+        cargoSnapshot: cargo  || undefined,
+        areaSnapshot:  area   || undefined,
+        tempoEmpresa:  (tempo || undefined) as TempoEmpresa | undefined,
+      });
       if (res.ok) {
         setStep('done');
       } else {
@@ -161,7 +174,7 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
               <button
                 type="button"
                 disabled={!checked || isPending}
-                onClick={() => setStep('questionnaire')}
+                onClick={() => setStep('demographics')}
                 style={{
                   padding: '12px 28px',
                   background: checked && !isPending ? '#0f2244' : '#d1d5db',
@@ -182,6 +195,63 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
                 style={{ padding: '10px', background: 'transparent', color: '#94a3b8', border: 'none', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
               >
                 {isPending ? 'Aguarde…' : 'Não desejo participar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Demographics screen ──────────────────────────────────────────────────
+  if (step === 'demographics') {
+    const inputStyle: React.CSSProperties = { width: '100%', padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', color: '#0f2244', boxSizing: 'border-box' };
+    return (
+      <div style={{ minHeight: '100vh', background: '#f4f6f9', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui,-apple-system,sans-serif' }}>
+        <div style={{ background: '#0f2244', padding: '16px 24px' }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em' }}>OCAI — Cultura Organizacional</div>
+          <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff', marginTop: '2px' }}>{avaliacao.nome}</div>
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+          <div style={{ width: '100%', maxWidth: '560px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '36px' }}>
+            <p style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>Dados demográficos (opcional)</p>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f2244', margin: '0 0 8px' }}>Antes de começar…</h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 24px', lineHeight: 1.6 }}>
+              Estas informações são opcionais e usadas apenas para análises agregadas. Não identificam você individualmente.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Cargo / Função</label>
+                <input type="text" placeholder="Ex: Analista, Gerente, Coordenador…" value={cargo} onChange={(e) => setCargo(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Área / Departamento</label>
+                <input type="text" placeholder="Ex: TI, RH, Comercial…" value={area} onChange={(e) => setArea(e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Tempo na empresa</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {TEMPO_OPTIONS.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setTempo(tempo === opt ? '' : opt)}
+                      style={{ padding: '6px 14px', borderRadius: '20px', border: `1px solid ${tempo === opt ? '#0f2244' : '#d1d5db'}`, background: tempo === opt ? '#0f2244' : '#fff', color: tempo === opt ? '#fff' : '#374151', fontSize: '13px', cursor: 'pointer', fontWeight: tempo === opt ? 600 : 400 }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={() => setStep('questionnaire')} style={{ flex: 1, padding: '12px', background: '#0f2244', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                Iniciar questionário →
+              </button>
+              <button type="button" onClick={() => setStep('questionnaire')} style={{ padding: '12px 16px', background: 'transparent', color: '#94a3b8', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                Pular
               </button>
             </div>
           </div>
