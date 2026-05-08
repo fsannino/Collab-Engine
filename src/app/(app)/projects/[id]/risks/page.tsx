@@ -2,7 +2,7 @@ import { getSession } from '@/core/auth/session'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { computeRiskSeverity, getRiskZone } from '@/modules/risk/risk.actions'
+import { computeRiskSeverity, getRiskZone } from '@/modules/risk/risk.utils'
 
 export const metadata = { title: 'Risk Log — Collab Engine' }
 

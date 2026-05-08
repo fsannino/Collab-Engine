@@ -2,7 +2,8 @@ import { getSession } from '@/core/auth/session'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { computeRiskSeverity, getRiskZone, closeRiskAction } from '@/modules/risk/risk.actions'
+import { computeRiskSeverity, getRiskZone } from '@/modules/risk/risk.utils'
+import { closeRiskAction } from '@/modules/risk/risk.actions'
 import { CloseRiskButton } from './_close-risk-btn'
 
 const ZONE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
