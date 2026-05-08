@@ -33,12 +33,20 @@ export default async function PortfolioDashboardPage() {
       _count: {
         select: {
           changeImpacts: { where: { deletedAt: null, status: { in: ['ACTIVE', 'MITIGATING'] } } },
-          risks:         { where: { deletedAt: null, status: { not: 'CLOSED' } } },
         },
       },
     },
     orderBy: { createdAt: 'desc' },
   })
+
+  // Riscos por projeto — tabela pode não existir ainda (migrations pendentes)
+  const riskCountByProject = await prisma.risk.groupBy({
+    by: ['projectId'],
+    where: { tenantId: session.tenantId, deletedAt: null, status: { not: 'CLOSED' } },
+    _count: { id: true },
+  }).catch(() => [] as { projectId: string; _count: { id: number } }[])
+
+  const riskMap = new Map(riskCountByProject.map(r => [r.projectId, r._count.id]))
 
   // Busca treinamentos por projeto
   const trainingByProject = await prisma.pessoaTreinamento.groupBy({
@@ -60,7 +68,7 @@ export default async function PortfolioDashboardPage() {
   // KPIs globais (servidor computa, nunca cliente)
   const totalProjects   = projects.length
   const activeProjects  = projects.filter(p => p.status === 'ACTIVE').length
-  const totalOpenRisks  = projects.reduce((s, p) => s + p._count.risks, 0)
+  const totalOpenRisks  = riskCountByProject.reduce((s, r) => s + r._count.id, 0)
   const totalOpenImpacts = projects.reduce((s, p) => s + p._count.changeImpacts, 0)
 
   // Health score simplificado por projeto (servidor):
@@ -124,7 +132,8 @@ export default async function PortfolioDashboardPage() {
             </thead>
             <tbody>
               {projects.map((p, i) => {
-                const health = projectHealth(p._count.changeImpacts, p._count.risks)
+                const openRisks = riskMap.get(p.id) ?? 0
+                const health = projectHealth(p._count.changeImpacts, openRisks)
                 const rag    = getRagColor(health)
                 const ss     = STATUS_STYLE[p.status] ?? DEFAULT_STATUS
                 const days   = daysToGo(p.targetEndDate)
@@ -146,7 +155,7 @@ export default async function PortfolioDashboardPage() {
                         <span style={{ background: rag.bg, color: rag.color, borderRadius: '5px', padding: '2px 7px', fontSize: '11px', fontWeight: 600 }}>{health}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: p._count.risks > 0 ? '#dc2626' : '#166534', fontWeight: 600 }}>{p._count.risks}</td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: openRisks > 0 ? '#dc2626' : '#166534', fontWeight: 600 }}>{openRisks}</td>
                     <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: p._count.changeImpacts > 0 ? '#d97706' : '#166534', fontWeight: 600 }}>{p._count.changeImpacts}</td>
                     <td style={{ padding: '12px 14px', fontSize: '12px', color: days !== null && days < 14 ? '#dc2626' : '#64748b' }}>
                       {days === null ? '—' : days < 0 ? `${Math.abs(days)}d atraso` : `${days}d`}
