@@ -31,7 +31,7 @@ const convidarSchema = z.object({
 
 const respostaSchema = z.object({
   token: z.string().uuid(),
-  respostas: z.record(z.object({
+  respostas: z.record(z.string(), z.object({
     atual:    z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
     desejado: z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
   })),
@@ -162,7 +162,7 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
 
   await prisma.$transaction([
     prisma.respostaOcai.create({
-      data: { avaliacaoId: convite.avaliacaoId, conviteId: convite.id, respostas },
+      data: { avaliacaoId: convite.avaliacaoId, conviteId: convite.id, respostas: respostas as object },
     }),
     prisma.conviteOcai.update({
       where: { id: convite.id },

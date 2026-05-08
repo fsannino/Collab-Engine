@@ -56,9 +56,10 @@ export function calcularResultado(respostas: { respostas: unknown }[]): Resultad
     for (const dim of DIMENSOES) {
       const d = data[dim.id];
       if (!d) continue;
+      const s = sums[dim.id]!;
       for (const tipo of ['CLAN', 'ADHOCRACY', 'MARKET', 'HIERARCHY'] as TipoCulturaId[]) {
-        sums[dim.id].atual[tipo]    += d.atual[tipo]    ?? 0;
-        sums[dim.id].desejado[tipo] += d.desejado[tipo] ?? 0;
+        s.atual[tipo]    += d.atual[tipo]    ?? 0;
+        s.desejado[tipo] += d.desejado[tipo] ?? 0;
       }
     }
   }
@@ -69,9 +70,10 @@ export function calcularResultado(respostas: { respostas: unknown }[]): Resultad
 
   for (const dim of DIMENSOES) {
     const id = dim.id as DimensaoId;
+    const s = sums[id]!;
     media[id] = {
-      atual:    { CLAN: sums[id].atual.CLAN / n,    ADHOCRACY: sums[id].atual.ADHOCRACY / n,    MARKET: sums[id].atual.MARKET / n,    HIERARCHY: sums[id].atual.HIERARCHY / n },
-      desejado: { CLAN: sums[id].desejado.CLAN / n, ADHOCRACY: sums[id].desejado.ADHOCRACY / n, MARKET: sums[id].desejado.MARKET / n, HIERARCHY: sums[id].desejado.HIERARCHY / n },
+      atual:    { CLAN: s.atual.CLAN / n,    ADHOCRACY: s.atual.ADHOCRACY / n,    MARKET: s.atual.MARKET / n,    HIERARCHY: s.atual.HIERARCHY / n },
+      desejado: { CLAN: s.desejado.CLAN / n, ADHOCRACY: s.desejado.ADHOCRACY / n, MARKET: s.desejado.MARKET / n, HIERARCHY: s.desejado.HIERARCHY / n },
     };
     for (const tipo of ['CLAN', 'ADHOCRACY', 'MARKET', 'HIERARCHY'] as TipoCulturaId[]) {
       geralAtual[tipo]    += media[id].atual[tipo]    / DIMENSOES.length;
