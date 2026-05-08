@@ -26,17 +26,18 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users         User[]
-  projects      Project[]
-  stakeholders  Stakeholder[]
-  pessoas       Pessoa[]
-  cargos        Cargo[]
-  funcoes       Funcao[]
-  areas         Area[]
-  processos     Processo[]
-  macroprocessos Macroprocesso[]
-  changeImpacts ChangeImpact[]
-  trainingPlans TrainingPlan[]
+  users              User[]
+  projects           Project[]
+  stakeholders       Stakeholder[]
+  pessoas            Pessoa[]
+  cargos             Cargo[]
+  funcoes            Funcao[]
+  areas              Area[]
+  processos          Processo[]
+  macroprocessos     Macroprocesso[]
+  changeImpacts      ChangeImpact[]
+  trainingPlans      TrainingPlan[]
+  avaliacoesCultura  AvaliacaoCultura[]
 
   @@index([slug])
 }
@@ -123,10 +124,11 @@ model Project {
   updatedAt        DateTime      @updatedAt
   deletedAt        DateTime?
 
-  members          ProjectMember[]
-  changeImpacts    ChangeImpact[]
-  stakeholderLinks ProjectStakeholder[]
-  trainingPlans    TrainingPlan[]
+  members            ProjectMember[]
+  changeImpacts      ChangeImpact[]
+  stakeholderLinks   ProjectStakeholder[]
+  trainingPlans      TrainingPlan[]
+  avaliacoesCultura  AvaliacaoCultura[]
 
   @@index([tenantId])
   @@index([status])
@@ -278,6 +280,7 @@ model Pessoa {
   stakeholders        Stakeholder[]
   treinamentos        PessoaTreinamento[]
   turmasComoInstrutor TurmaInstrutor[]
+  convitesOcai        ConviteOcai[]      @relation("PessoaConvitesOcai")
 
   @@index([tenantId])
   @@index([email])
@@ -391,9 +394,10 @@ model Area {
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
 
-  impactAreas ImpactArea[]
-  pessoas     Pessoa[]     @relation("PessoaArea")
-  cargos      Cargo[]      @relation("CargoArea")
+  impactAreas       ImpactArea[]
+  pessoas           Pessoa[]          @relation("PessoaArea")
+  cargos            Cargo[]           @relation("CargoArea")
+  avaliacoesCultura AvaliacaoCultura[] @relation("AreaAvaliacoes")
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -814,6 +818,83 @@ enum StatusEvento {
   PROCESSADO
   FALHADO
   DESCARTADO
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CULTURA ORGANIZACIONAL — OCAI (Sprint 5)
+// ═══════════════════════════════════════════════════════════════
+
+enum AvaliacaoTipo {
+  PROJETO  // vinculada a um Project
+  AREA     // vinculada a uma Area
+  LIVRE    // standalone / diagnóstico livre
+}
+
+enum AvaliacaoStatus {
+  RASCUNHO
+  ATIVA
+  ENCERRADA
+}
+
+model AvaliacaoCultura {
+  id          String           @id @default(uuid())
+  tenantId    String
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  nome        String
+  descricao   String?
+  tipo        AvaliacaoTipo    @default(LIVRE)
+  projectId   String?
+  project     Project?         @relation(fields: [projectId], references: [id])
+  areaId      String?
+  area        Area?            @relation("AreaAvaliacoes", fields: [areaId], references: [id])
+  status      AvaliacaoStatus  @default(RASCUNHO)
+  dataInicio  DateTime?
+  dataFim     DateTime?
+  createdBy   String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  convites    ConviteOcai[]
+  respostas   RespostaOcai[]
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([areaId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model ConviteOcai {
+  id           String            @id @default(uuid())
+  avaliacaoId  String
+  avaliacao    AvaliacaoCultura  @relation(fields: [avaliacaoId], references: [id])
+  pessoaId     String?
+  pessoa       Pessoa?           @relation("PessoaConvitesOcai", fields: [pessoaId], references: [id])
+  email        String
+  nome         String
+  token        String            @unique @default(uuid())
+  respondidoEm DateTime?
+  createdAt    DateTime          @default(now())
+
+  resposta     RespostaOcai?
+
+  @@index([avaliacaoId])
+  @@index([token])
+}
+
+model RespostaOcai {
+  id          String            @id @default(uuid())
+  avaliacaoId String
+  avaliacao   AvaliacaoCultura  @relation(fields: [avaliacaoId], references: [id])
+  conviteId   String?           @unique
+  convite     ConviteOcai?      @relation(fields: [conviteId], references: [id])
+  // JSON: { DIM: { atual: {CLAN,ADHOCRACY,MARKET,HIERARCHY}, desejado: {...} } }
+  respostas   Json
+  manual      Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+
+  @@index([avaliacaoId])
 }
 
 // ═══════════════════════════════════════════════════════════════
