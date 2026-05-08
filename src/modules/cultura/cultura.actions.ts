@@ -7,9 +7,6 @@ import { prisma } from '@/lib/prisma';
 import type { ActionResult } from '@/shared/types/action-result';
 import { DIMENSOES } from './cultura.utils';
 
-export type { DimensaoId, TipoCulturaId, OcaiValores, OcaiRespostas, ResultadoOcai } from './cultura.utils';
-export { DIMENSOES, TIPOS_CULTURA, calcularResultado } from './cultura.utils';
-
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
 const createAvaliacaoSchema = z.object({

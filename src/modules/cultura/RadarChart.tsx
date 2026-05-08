@@ -1,6 +1,6 @@
 'use client';
 
-import type { OcaiValores } from './cultura.actions';
+import type { OcaiValores } from './cultura.utils';
 
 const SIZE = 260;
 const CX = SIZE / 2;
