@@ -1,49 +1,136 @@
 import { getSession } from '@/core/auth/session'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { MetricCard } from './_metric-card'
 
-export const metadata = { title: 'Dashboard — Collab Engine' }
+export const metadata = { title: 'Painel — Collab Engine' }
 
-const modules = [
-  { href: '/projects', label: 'Projetos', description: 'Gestão de projetos de mudança organizacional', icon: '📋' },
-  { href: '/people', label: 'Pessoas', description: 'Cadastro e gestão de colaboradores', icon: '👤' },
-  { href: '/cargos', label: 'Cargos', description: 'Estrutura de cargos da organização', icon: '🏷️' },
-  { href: '/funcoes', label: 'Funções', description: 'Funções e papéis nos processos', icon: '⚙️' },
-  { href: '/training/plans', label: 'Planos de Treinamento', description: 'M5 — Orquestração de treinamentos e capacitação', icon: '📚' },
-  { href: '/areas', label: 'Áreas', description: 'Áreas e departamentos da organização', icon: '🏢' },
-  { href: '/macroprocessos', label: 'Macroprocessos', description: 'Hierarquia de macroprocessos e processos', icon: '🔄' },
-  { href: '/cultura', label: 'Cultura Org.', description: 'M — Avaliação OCAI de cultura organizacional', icon: '🧭' },
-  { href: '/lideranca', label: 'Liderança', description: 'M7 — Leadership Console com avaliação ADKAR', icon: '👥' },
-  { href: '/cmo', label: 'CMO', description: 'M11 — Change Management Office, visão executiva OCM', icon: '📊' },
-  { href: '/bridge', label: 'Bridge', description: 'Monitor de integração cross-sistema SMR ↔ Collab ↔ XPROC', icon: '🔗' },
-]
+// Accent colors cycling: navy, gold, navy, gold…
+const ACCENTS = ['#0B1F3A', '#c9a227', '#0B1F3A', '#c9a227', '#0B1F3A', '#c9a227']
+const BADGE_BG = ['rgba(11,31,58,0.10)', 'rgba(201,162,39,0.15)', 'rgba(11,31,58,0.10)', 'rgba(201,162,39,0.15)', 'rgba(11,31,58,0.10)', 'rgba(201,162,39,0.15)']
+const BADGE_COLOR = ['#0B1F3A', '#92710f', '#0B1F3A', '#92710f', '#0B1F3A', '#92710f']
+
+function pad(n: number) { return String(n).padStart(2, '0') }
+
+type ModuleCard = {
+  href: string
+  label: string
+  description: string
+  count: number
+}
 
 export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  // Fetch all counts in parallel
+  const [
+    projetos,
+    pessoas,
+    impactosAbertos,
+    trainingStats,
+    culturais,
+    liderancas,
+  ] = await Promise.all([
+    prisma.project.count({ where: { tenantId: session.tenantId, deletedAt: null } }),
+    prisma.pessoa.count({ where: { tenantId: session.tenantId, deletedAt: null } }),
+    prisma.changeImpact.count({ where: { tenantId: session.tenantId, deletedAt: null, status: { in: ['ACTIVE', 'MITIGATING'] } } }),
+    prisma.pessoaTreinamento.groupBy({
+      by: ['status'],
+      where: { trainingItem: { plan: { project: { tenantId: session.tenantId }, deletedAt: null }, deletedAt: null }, deletedAt: null },
+      _count: { id: true },
+    }),
+    prisma.avaliacaoCultura.count({ where: { tenantId: session.tenantId, deletedAt: null } }),
+    prisma.lideranca.count({ where: { tenantId: session.tenantId, deletedAt: null } }),
+  ])
+
+  const totalTreinos = trainingStats.reduce((s, g) => s + g._count.id, 0)
+  const concluidos   = trainingStats.find((g) => g.status === 'CONCLUIDO')?._count.id ?? 0
+  const coveragePct  = totalTreinos > 0 ? Math.round((concluidos / totalTreinos) * 100) : 0
+
+  const cards: ModuleCard[] = [
+    { href: '/projects',       label: 'Projetos',         description: 'Projetos de mudança ativos.',        count: projetos         },
+    { href: '/people',         label: 'Pessoas',           description: 'Colaboradores cadastrados.',         count: pessoas          },
+    { href: '/projects',       label: 'Impactos Abertos',  description: 'Impactos em análise ou mitigação.', count: impactosAbertos  },
+    { href: '/training/plans', label: 'Cobertura',         description: `Treinamentos concluídos (${concluidos}/${totalTreinos}).`, count: coveragePct },
+    { href: '/cultura',        label: 'Avaliações OCAI',   description: 'Diagnósticos culturais realizados.', count: culturais        },
+    { href: '/lideranca',      label: 'Líderes',           description: 'Líderes com avaliação ADKAR.',       count: liderancas       },
+  ]
+
   return (
-    <div style={{ padding:'40px 48px', fontFamily:'system-ui,-apple-system,sans-serif', maxWidth:'1100px' }}>
-      <div style={{ marginBottom:'36px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'6px' }}>
-          <div style={{ width:'4px', height:'24px', background:'#c9a227', borderRadius:'2px' }} />
-          <h1 style={{ fontSize:'24px', fontWeight:700, color:'#0f2244', margin:0 }}>Dashboard</h1>
+    <div style={{ padding: '40px 44px', maxWidth: '1100px' }}>
+
+      {/* ── Section header ─────────────────────────────────────────── */}
+      <div style={{ marginBottom: '36px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#1a6e8e', marginBottom: '10px' }}>
+          Visão Geral
         </div>
-        <p style={{ color:'#64748b', fontSize:'14px', margin:'0 0 0 14px' }}>
-          Bem-vindo, <strong style={{ color:'#0f2244' }}>{session.email}</strong>
+        <h1 style={{
+          fontFamily: 'var(--font-display), Georgia, serif',
+          fontSize: '36px',
+          fontWeight: 400,
+          color: '#0B1F3A',
+          margin: '0 0 10px',
+          lineHeight: 1.15,
+        }}>
+          Painel de Mudança
+        </h1>
+        <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.6, maxWidth: '520px' }}>
+          Acompanhe os indicadores-chave da gestão de mudança organizacional. Cada bloco abre o módulo correspondente.
         </p>
+        {/* Gold decorative bar */}
+        <div style={{ width: '120px', height: '3px', background: 'linear-gradient(90deg, #c9a227 0%, #1a6e8e 100%)', borderRadius: '2px' }} />
       </div>
 
-      <div style={{ marginBottom:'20px' }}>
-        <h2 style={{ fontSize:'13px', fontWeight:600, color:'#94a3b8', letterSpacing:'0.08em', textTransform:'uppercase', margin:'0 0 16px' }}>
-          Módulos disponíveis
-        </h2>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:'16px' }}>
-          {modules.map((mod) => (
-            <Link key={mod.href} href={mod.href} className="module-card">
-              <div style={{ fontSize:'24px', marginBottom:'10px' }}>{mod.icon}</div>
-              <div style={{ fontWeight:600, color:'#0f2244', fontSize:'14px', marginBottom:'4px' }}>{mod.label}</div>
-              <div style={{ color:'#64748b', fontSize:'12px', lineHeight:1.5 }}>{mod.description}</div>
+      {/* ── Card grid (3 × 2) ──────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '40px' }}>
+        {cards.map((card, i) => (
+          <MetricCard
+            key={card.href + i}
+            href={card.href}
+            accent={ACCENTS[i]!}
+            badgeBg={BADGE_BG[i]!}
+            badgeColor={BADGE_COLOR[i]!}
+            badge={pad(i + 1)}
+            metric={i === 3 ? `${card.count}%` : card.count}
+            label={card.label}
+            description={card.description}
+          />
+        ))}
+      </div>
+
+      {/* ── Quick links row ─────────────────────────────────────────── */}
+      <div style={{ borderTop: '1px solid #e9ecf0', paddingTop: '24px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#94a3b8', marginBottom: '14px' }}>
+          Acesso rápido
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {[
+            { href: '/areas',          label: 'Áreas'          },
+            { href: '/cargos',         label: 'Cargos'         },
+            { href: '/funcoes',        label: 'Funções'        },
+            { href: '/macroprocessos', label: 'Macroprocessos' },
+            { href: '/processos',      label: 'Processos'      },
+            { href: '/bridge/dashboard', label: 'Cross-Sistema' },
+            { href: '/cmo',            label: 'CMO'            },
+          ].map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#475569',
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '6px',
+                padding: '6px 14px',
+                textDecoration: 'none',
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+            >
+              {link.label}
             </Link>
           ))}
         </div>
