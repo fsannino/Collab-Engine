@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { responderOcaiAction } from '@/modules/cultura/cultura.actions';
+import { OCAI_AFIRMACOES } from '@/modules/cultura/cultura.utils';
 
-type Dimensao    = { id: string; label: string };
+type Dimensao    = { id: string; label: string; stem: string };
 type TipoCultura = { id: string; label: string; cor: string };
 type Avaliacao   = { id: string; nome: string; descricao: string | null; status: string };
 
@@ -158,19 +159,25 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
             <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
               Dimensão {dimIdx + 1} de {dimensoes.length}
             </div>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f2244', margin: '0 0 8px' }}>{dim.label}</h2>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px', lineHeight: 1.5 }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#0f2244', margin: '0 0 4px' }}>{dim.label}</h2>
+            <p style={{ fontSize: '13px', color: '#475569', fontStyle: 'italic', margin: '0 0 6px', lineHeight: 1.4 }}>{dim.stem}</p>
+            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 20px', lineHeight: 1.5 }}>
               {momento === 'ATUAL'
-                ? 'Distribua 100 pontos entre os quatro perfis conforme reflete a realidade atual da sua organização.'
-                : 'Agora distribua 100 pontos conforme o perfil que você gostaria que sua organização tivesse no futuro.'}
+                ? 'Distribua 100 pontos entre as quatro afirmações conforme cada uma descreve a realidade atual da sua organização.'
+                : 'Distribua 100 pontos conforme cada afirmação descreve a organização que você gostaria de ter no futuro.'}
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {tiposCultura.map((tipo) => (
-                <div key={tipo.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tipo.cor, flexShrink: 0 }} />
-                  <div style={{ flex: 1, fontSize: '14px', fontWeight: 600, color: '#0f2244' }}>{tipo.label}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {tiposCultura.map((tipo) => {
+                const afirmacao = OCAI_AFIRMACOES[dim.id as keyof typeof OCAI_AFIRMACOES]?.[tipo.id as keyof typeof OCAI_AFIRMACOES[keyof typeof OCAI_AFIRMACOES]];
+                return (
+                <div key={tipo.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: tipo.cor, flexShrink: 0, marginTop: '3px' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: tipo.cor, marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tipo.label}</div>
+                    {afirmacao && <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5 }}>{afirmacao}</div>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                     <button
                       type="button"
                       onClick={() => change(tipo.id, String(Math.max(0, (vals[tipo.id] ?? 0) - 5)))}
@@ -182,16 +189,18 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
                       max={100}
                       value={vals[tipo.id]}
                       onChange={(e) => change(tipo.id, e.target.value)}
-                      style={{ width: '56px', textAlign: 'center', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 6px', fontSize: '15px', fontWeight: 700, color: '#0f2244' }}
+                      style={{ width: '64px', textAlign: 'center', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 6px', fontSize: '15px', fontWeight: 700, color: '#0f2244' }}
                     />
                     <button
                       type="button"
                       onClick={() => change(tipo.id, String(Math.min(100, (vals[tipo.id] ?? 0) + 5)))}
                       style={{ width: '28px', height: '28px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >+</button>
+                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>pontos</span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Total indicator */}
