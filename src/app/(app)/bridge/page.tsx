@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { ReprocessarBtn, DescartarBtn } from './_event-actions';
@@ -100,7 +101,13 @@ export default async function BridgePage() {
             Integração cross-sistema · SMR Projetos ↔ Collab Engine ↔ XPROC
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <Link
+            href="/bridge/dashboard"
+            style={{ fontSize: '12px', fontWeight: 600, color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '6px', padding: '5px 12px', background: '#fff', whiteSpace: 'nowrap' }}
+          >
+            Dashboard Cross-Sistema →
+          </Link>
           {(['SMR', 'COLLAB', 'XPROC'] as const).map((sys) => (
             <span
               key={sys}

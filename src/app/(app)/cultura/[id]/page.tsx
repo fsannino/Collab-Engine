@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
@@ -7,8 +8,78 @@ import RadarChart from '@/modules/cultura/RadarChart';
 import AvaliacaoControles from './_controles';
 import { getOcaiAreaScope } from '@/lib/ocai/manager-scope';
 import TrendChart from '@/modules/cultura/TrendChart';
+import { gerarAnaliseOcai } from '@/lib/ocai/ai-analysis';
 
 const STATUS_LABEL: Record<string, string> = { RASCUNHO: 'Rascunho', ATIVA: 'Ativa', ENCERRADA: 'Encerrada' };
+
+// Async Server Component — streamed via Suspense, result cached 24h per avaliação
+async function AnaliseIaSection({
+  avaliacaoId, atual, desejado, totalRespostas, nomePesquisa,
+}: {
+  avaliacaoId:    string;
+  atual:          import('@/modules/cultura/cultura.utils').OcaiValores;
+  desejado:       import('@/modules/cultura/cultura.utils').OcaiValores;
+  totalRespostas: number;
+  nomePesquisa:   string;
+}) {
+  let analise: import('@/lib/ocai/ai-analysis').AnaliseIaResult | null = null;
+  try {
+    analise = await gerarAnaliseOcai(avaliacaoId, atual, desejado, totalRespostas, nomePesquisa);
+  } catch {
+    // Silently degrade — AI analysis is informational
+  }
+
+  if (!analise) {
+    return (
+      <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+        <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>
+          Análise Narrativa IA
+        </h2>
+        <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>
+          Análise não disponível no momento. Tente novamente mais tarde.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
+          Análise Narrativa IA
+        </h2>
+        <span style={{ fontSize: '10px', background: '#f0fdf4', color: '#166534', borderRadius: '10px', padding: '2px 8px', fontWeight: 600 }}>
+          Sugestão — revise antes de usar
+        </span>
+      </div>
+
+      {/* Narrative */}
+      <div style={{ fontSize: '14px', color: '#374151', lineHeight: '1.7', whiteSpace: 'pre-line', marginBottom: '20px' }}>
+        {analise.narrativa}
+      </div>
+
+      {/* Recommendations */}
+      {analise.recomendacoes.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#0f2244', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Recomendações de Mudança
+          </h3>
+          <ol style={{ paddingLeft: '20px', margin: 0 }}>
+            {analise.recomendacoes.map((rec, i) => (
+              <li key={i} style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', lineHeight: '1.5' }}>
+                {rec}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <p style={{ fontSize: '11px', color: '#cbd5e1', margin: '16px 0 0', textAlign: 'right' }}>
+        Gerado por IA em {new Date(analise.geradaEm).toLocaleString('pt-BR')}
+      </p>
+    </div>
+  );
+}
 const STATUS_COLOR: Record<string, React.CSSProperties> = {
   RASCUNHO:  { background: '#f1f5f9', color: '#64748b' },
   ATIVA:     { background: '#dcfce7', color: '#15803d' },
@@ -272,6 +343,25 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
             Evolução Histórica — {ciclosTrend.length} ciclos
           </h2>
           <TrendChart ciclos={ciclosTrend} />
+        </div>
+      )}
+
+      {/* Análise IA — only for ENCERRADA surveys with enough responses */}
+      {av.status === 'ENCERRADA' && resultado.totalRespostas > 0 && !suppressed && (
+        <div style={{ marginTop: '24px' }}>
+          <Suspense fallback={
+            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+              Gerando análise cultural com IA…
+            </div>
+          }>
+            <AnaliseIaSection
+              avaliacaoId={av.id}
+              atual={resultado.geral.atual}
+              desejado={resultado.geral.desejado}
+              totalRespostas={resultado.totalRespostas}
+              nomePesquisa={av.nome}
+            />
+          </Suspense>
         </div>
       )}
     </div>
