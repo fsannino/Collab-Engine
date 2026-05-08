@@ -68,7 +68,7 @@ export default async function PortfolioDashboardPage() {
   // KPIs globais (servidor computa, nunca cliente)
   const totalProjects   = projects.length
   const activeProjects  = projects.filter(p => p.status === 'ACTIVE').length
-  const totalOpenRisks  = riskCountByProject.reduce<number>((s, r) => s + r._count.id, 0)
+  const totalOpenRisks  = riskCountByProject.reduce((s, r) => s + Number(r._count.id), 0)
   const totalOpenImpacts = projects.reduce((s, p) => s + p._count.changeImpacts, 0)
 
   // Health score simplificado por projeto (servidor):
