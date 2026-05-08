@@ -9,6 +9,8 @@ const navItems = [
   { href: '/people', label: 'Pessoas' },
   { href: '/cargos', label: 'Cargos' },
   { href: '/funcoes', label: 'Funções' },
+  { href: '/macroprocessos', label: 'Macroprocessos' },
+  { href: '/processos', label: 'Processos' },
   { href: '/training/plans', label: 'Treinamentos' },
 ]
 
