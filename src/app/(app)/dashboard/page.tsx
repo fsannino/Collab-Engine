@@ -12,6 +12,7 @@ const modules = [
   { href: '/training/plans', label: 'Planos de Treinamento', description: 'M5 — Orquestração de treinamentos e capacitação', icon: '📚' },
   { href: '/areas', label: 'Áreas', description: 'Áreas e departamentos da organização', icon: '🏢' },
   { href: '/macroprocessos', label: 'Macroprocessos', description: 'Hierarquia de macroprocessos e processos', icon: '🔄' },
+  { href: '/cultura', label: 'Cultura Org.', description: 'M — Avaliação OCAI de cultura organizacional', icon: '🧭' },
 ]
 
 export default async function DashboardPage() {
