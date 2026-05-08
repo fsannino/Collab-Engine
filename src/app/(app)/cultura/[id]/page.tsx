@@ -6,6 +6,7 @@ import { calcularResultado, calcularMediaGeral, DIMENSOES, TIPOS_CULTURA } from 
 import RadarChart from '@/modules/cultura/RadarChart';
 import AvaliacaoControles from './_controles';
 import { getOcaiAreaScope } from '@/lib/ocai/manager-scope';
+import TrendChart from '@/modules/cultura/TrendChart';
 
 const STATUS_LABEL: Record<string, string> = { RASCUNHO: 'Rascunho', ATIVA: 'Ativa', ENCERRADA: 'Encerrada' };
 const STATUS_COLOR: Record<string, React.CSSProperties> = {
@@ -34,8 +35,8 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
   const scope = await getOcaiAreaScope(session);
   if (scope && av.areaId !== scope) notFound();
 
-  // Fetch area and company averages in parallel for radar comparison
-  const [areaRespostas, empresaRespostas] = await Promise.all([
+  // Fetch area/company averages + historical cycles in parallel
+  const [areaRespostas, empresaRespostas, ciclosHistoricos] = await Promise.all([
     av.areaId
       ? prisma.respostaOcai.findMany({
           where: { avaliacao: { tenantId: session.tenantId, areaId: av.areaId, deletedAt: null } },
@@ -44,11 +45,40 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
     prisma.respostaOcai.findMany({
       where: { avaliacao: { tenantId: session.tenantId, deletedAt: null } },
     }),
+    // Other surveys for the same project or area (for trend chart)
+    (av.projectId || av.areaId)
+      ? prisma.avaliacaoCultura.findMany({
+          where: {
+            tenantId:  session.tenantId,
+            deletedAt: null,
+            status:    'ENCERRADA',
+            id:        { not: id },
+            ...(av.projectId ? { projectId: av.projectId } : { areaId: av.areaId! }),
+          },
+          include:  { respostas: true },
+          orderBy:  { dataFim: 'asc' },
+        })
+      : Promise.resolve([]),
   ]);
 
   const minGroupSize   = av.minGroupSize ?? 3;
   const resultado      = calcularResultado(av.respostas);
   const suppressed     = resultado.totalRespostas > 0 && resultado.totalRespostas < minGroupSize;
+
+  // Historical trend — past ENCERRADA cycles + current (when not suppressed)
+  const ciclosTrend = [
+    ...ciclosHistoricos
+      .map((c) => {
+        const r = calcularResultado(c.respostas);
+        return r.totalRespostas >= minGroupSize
+          ? { label: c.nome, geral: r.geral.atual }
+          : null;
+      })
+      .filter((c): c is { label: string; geral: import('@/modules/cultura/cultura.utils').OcaiValores } => c !== null),
+    ...(!suppressed && resultado.totalRespostas > 0
+      ? [{ label: av.nome, geral: resultado.geral.atual }]
+      : []),
+  ];
   const mediaArea      = areaRespostas.length >= minGroupSize ? calcularMediaGeral(areaRespostas) : null;
   const mediaEmpresa   = empresaRespostas.length >= minGroupSize ? calcularMediaGeral(empresaRespostas) : null;
   const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? '';
@@ -204,6 +234,16 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
         </div>
       </div>
 
+      {/* Exportar + ações */}
+      <div style={{ marginTop: '8px', display: 'flex', gap: '10px' }}>
+        <a
+          href={`/api/cultura/${av.id}/export`}
+          style={{ fontSize: '12px', color: '#15803d', textDecoration: 'none', border: '1px solid #86efac', borderRadius: '6px', padding: '5px 12px', fontWeight: 600 }}
+        >
+          ⬇ Exportar XLSX
+        </a>
+      </div>
+
       {/* Por dimensão */}
       {resultado.totalRespostas > 0 && !suppressed && (
         <div style={{ marginTop: '24px' }}>
@@ -223,6 +263,15 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {/* Evolução histórica */}
+      {ciclosTrend.length >= 2 && (
+        <div style={{ marginTop: '24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px 24px' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 16px' }}>
+            Evolução Histórica — {ciclosTrend.length} ciclos
+          </h2>
+          <TrendChart ciclos={ciclosTrend} />
         </div>
       )}
     </div>
