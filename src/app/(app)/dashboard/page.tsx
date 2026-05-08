@@ -10,6 +10,8 @@ const modules = [
   { href: '/cargos', label: 'Cargos', description: 'Estrutura de cargos da organização', icon: '🏷️' },
   { href: '/funcoes', label: 'Funções', description: 'Funções e papéis nos processos', icon: '⚙️' },
   { href: '/training/plans', label: 'Planos de Treinamento', description: 'M5 — Orquestração de treinamentos e capacitação', icon: '📚' },
+  { href: '/areas', label: 'Áreas', description: 'Áreas e departamentos da organização', icon: '🏢' },
+  { href: '/macroprocessos', label: 'Macroprocessos', description: 'Hierarquia de macroprocessos e processos', icon: '🔄' },
 ]
 
 export default async function DashboardPage() {
