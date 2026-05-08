@@ -35,17 +35,25 @@ export default async function PessoaDetailPage({ params }: Props) {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <nav className="text-xs text-gray-400 mb-1">
-          <Link href="/people" className="hover:underline">Pessoas</Link>
-          {' / '}{pessoa.nome}
-        </nav>
-        <h1 className="text-2xl font-bold text-gray-900">{pessoa.nome}</h1>
-        <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
-          {pessoa.email && <span>{pessoa.email}</span>}
-          {pessoa.cpf   && <span>CPF: {pessoa.cpf}</span>}
-          {pessoa.hrisId && <span>HRIS: {pessoa.hrisId}</span>}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <nav className="text-xs text-gray-400 mb-1">
+            <Link href="/people" className="hover:underline">Pessoas</Link>
+            {' / '}{pessoa.nome}
+          </nav>
+          <h1 className="text-2xl font-bold text-gray-900">{pessoa.nome}</h1>
+          <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-500">
+            {pessoa.email && <span>{pessoa.email}</span>}
+            {pessoa.cpf   && <span>CPF: {pessoa.cpf}</span>}
+            {pessoa.hrisId && <span>HRIS: {pessoa.hrisId}</span>}
+          </div>
         </div>
+        <Link
+          href={`/people/${id}/edit`}
+          style={{ padding: '7px 16px', background: 'transparent', color: '#0f2244', border: '1px solid #d1d5db', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          Editar
+        </Link>
       </div>
 
       {/* Cargos atuais */}
