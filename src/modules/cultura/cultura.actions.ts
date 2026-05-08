@@ -4,8 +4,12 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { resend } from '@/lib/resend';
 import type { ActionResult } from '@/shared/types/action-result';
 import { DIMENSOES } from './cultura.utils';
+
+const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab Engine <noreply@collabz.com.br>';
+const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -106,7 +110,7 @@ export async function convidarRespondentesAction(raw: unknown): Promise<ActionRe
   const existing = await prisma.conviteOcai.findFirst({ where: { avaliacaoId, email } });
   if (existing) return { ok: false, error: 'Este e-mail já foi convidado' };
 
-  await prisma.conviteOcai.create({
+  const convite = await prisma.conviteOcai.create({
     data: {
       avaliacaoId,
       nome,
@@ -114,6 +118,36 @@ export async function convidarRespondentesAction(raw: unknown): Promise<ActionRe
       pessoaId: pessoaId || null,
     },
   });
+
+  // Send invite email (fire-and-forget — don't block on failure)
+  const link = `${APP_URL}/ocai/${convite.token}`;
+  resend.emails.send({
+    from: EMAIL_FROM,
+    to: email,
+    subject: `Convite para avaliação de cultura: ${avaliacao.nome}`,
+    html: `
+      <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+        <div style="margin-bottom:24px">
+          <span style="display:inline-block;background:#0f2244;color:#c9a227;font-weight:700;font-size:13px;padding:4px 12px;border-radius:4px;letter-spacing:0.06em">COLLAB ENGINE</span>
+        </div>
+        <h2 style="color:#0f2244;font-size:20px;margin:0 0 12px">Olá, ${nome}!</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px">
+          Você foi convidado(a) para participar da avaliação de cultura organizacional <strong>${avaliacao.nome}</strong>.
+        </p>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          O questionário leva cerca de 5 minutos e não requer cadastro.
+        </p>
+        <a href="${link}" style="display:inline-block;background:#0f2244;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:14px">
+          Responder Questionário →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin:24px 0 0">
+          Ou acesse: <a href="${link}" style="color:#0f2244">${link}</a>
+        </p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+        <p style="color:#94a3b8;font-size:11px;margin:0">Este link é pessoal e intransferível. Use apenas uma vez.</p>
+      </div>
+    `,
+  }).catch(() => { /* log silently */ });
 
   revalidatePath(`/cultura/${avaliacaoId}`);
   return { ok: true, data: undefined };
@@ -134,6 +168,45 @@ export async function removerConviteAction(conviteId: string): Promise<ActionRes
   await prisma.conviteOcai.delete({ where: { id: conviteId } });
 
   revalidatePath(`/cultura/${convite.avaliacaoId}`);
+  return { ok: true, data: undefined };
+}
+
+const manualSchema = z.object({
+  avaliacaoId: z.string().uuid(),
+  respostas: z.record(z.string(), z.object({
+    atual:    z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
+    desejado: z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
+  })),
+});
+
+export async function registrarResultadoManualAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = manualSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { avaliacaoId, respostas } = parsed.data;
+
+  const avaliacao = await prisma.avaliacaoCultura.findFirst({
+    where: { id: avaliacaoId, tenantId: session.tenantId, deletedAt: null },
+  });
+  if (!avaliacao) return { ok: false, error: 'Avaliação não encontrada' };
+
+  for (const dim of DIMENSOES) {
+    const d = respostas[dim.id];
+    if (!d) return { ok: false, error: `Dimensão ${dim.label} não preenchida` };
+    const sumA = d.atual.CLAN + d.atual.ADHOCRACY + d.atual.MARKET + d.atual.HIERARCHY;
+    const sumD = d.desejado.CLAN + d.desejado.ADHOCRACY + d.desejado.MARKET + d.desejado.HIERARCHY;
+    if (Math.abs(sumA - 100) > 1) return { ok: false, error: `${dim.label} (atual) deve somar 100` };
+    if (Math.abs(sumD - 100) > 1) return { ok: false, error: `${dim.label} (desejado) deve somar 100` };
+  }
+
+  await prisma.respostaOcai.create({
+    data: { avaliacaoId, respostas: respostas as object, manual: true },
+  });
+
+  revalidatePath(`/cultura/${avaliacaoId}`);
   return { ok: true, data: undefined };
 }
 

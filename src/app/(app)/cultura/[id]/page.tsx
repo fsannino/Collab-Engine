@@ -106,11 +106,16 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
             <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#0f2244', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Respondentes ({av.convites.filter((c) => c.respondidoEm).length}/{av.convites.length})
             </h2>
-            {av.status !== 'ENCERRADA' && (
-              <Link href={`/cultura/${av.id}/convidar`} style={{ fontSize: '12px', color: '#0f2244', fontWeight: 600, textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 10px' }}>
-                + Convidar
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {av.status !== 'ENCERRADA' && (
+                <Link href={`/cultura/${av.id}/convidar`} style={{ fontSize: '12px', color: '#0f2244', fontWeight: 600, textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 10px' }}>
+                  + Convidar
+                </Link>
+              )}
+              <Link href={`/cultura/${av.id}/resultados`} style={{ fontSize: '12px', color: '#64748b', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '6px', padding: '4px 10px' }}>
+                Entrada manual
               </Link>
-            )}
+            </div>
           </div>
 
           {av.convites.length === 0 ? (
