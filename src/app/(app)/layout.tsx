@@ -5,6 +5,7 @@ import { logoutAction } from '@/actions/auth'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/projects', label: 'Projetos' },
   { href: '/people', label: 'Pessoas' },
   { href: '/cargos', label: 'Cargos' },
   { href: '/funcoes', label: 'Funções' },
