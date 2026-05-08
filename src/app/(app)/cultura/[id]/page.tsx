@@ -41,17 +41,19 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
     }),
   ]);
 
+  const minGroupSize   = av.minGroupSize ?? 3;
   const resultado      = calcularResultado(av.respostas);
-  const mediaArea      = areaRespostas.length > 0 ? calcularMediaGeral(areaRespostas) : null;
-  const mediaEmpresa   = empresaRespostas.length > 0 ? calcularMediaGeral(empresaRespostas) : null;
+  const suppressed     = resultado.totalRespostas > 0 && resultado.totalRespostas < minGroupSize;
+  const mediaArea      = areaRespostas.length >= minGroupSize ? calcularMediaGeral(areaRespostas) : null;
+  const mediaEmpresa   = empresaRespostas.length >= minGroupSize ? calcularMediaGeral(empresaRespostas) : null;
   const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
-  // Build radar series for main chart
-  const mainSeries = resultado.totalRespostas > 0
+  // Build radar series for main chart (only when not suppressed)
+  const mainSeries = !suppressed && resultado.totalRespostas > 0
     ? [
         { label: 'Esta pesquisa', values: resultado.geral.atual,    color: '#0f2244' },
         { label: 'Desejado',      values: resultado.geral.desejado, color: '#c9a227', dashed: true },
-        ...(mediaArea    ? [{ label: `Média da área`,    values: mediaArea,    color: '#3b82f6' }] : []),
+        ...(mediaArea    ? [{ label: 'Média da área',    values: mediaArea,    color: '#3b82f6' }] : []),
         ...(mediaEmpresa ? [{ label: 'Média da empresa', values: mediaEmpresa, color: '#8b5cf6', dashed: true }] : []),
       ]
     : [];
@@ -93,12 +95,20 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
           )}
           {resultado.totalRespostas === 0 ? (
             <p style={{ color: '#94a3b8', fontSize: '13px', padding: '40px 0' }}>Aguardando respostas</p>
+          ) : suppressed ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔒</div>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#475569', margin: '0 0 4px' }}>Resultado suprimido por privacidade</p>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                Mínimo de {minGroupSize} respostas para exibição ({resultado.totalRespostas}/{minGroupSize})
+              </p>
+            </div>
           ) : (
             <RadarChart series={mainSeries} />
           )}
 
           {/* Scores table */}
-          {resultado.totalRespostas > 0 && (
+          {resultado.totalRespostas > 0 && !suppressed && (
             <table style={{ width: '100%', marginTop: '16px', fontSize: '12px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -168,17 +178,17 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {c.respondidoEm ? (
                       <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', borderRadius: '12px', padding: '2px 8px', fontWeight: 600 }}>✓ Respondido</span>
+                    ) : c.status === 'OPTADO_OUT' ? (
+                      <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#64748b', borderRadius: '12px', padding: '2px 8px' }}>Recusou</span>
+                    ) : c.status === 'EM_ANDAMENTO' ? (
+                      <>
+                        <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1d4ed8', borderRadius: '12px', padding: '2px 8px' }}>Em andamento</span>
+                        <a href={`${appUrl}/ocai/${c.token}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}>Link</a>
+                      </>
                     ) : (
                       <>
                         <span style={{ fontSize: '11px', background: '#fef9c3', color: '#854d0e', borderRadius: '12px', padding: '2px 8px' }}>Pendente</span>
-                        <a
-                          href={`${appUrl}/ocai/${c.token}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}
-                        >
-                          Link
-                        </a>
+                        <a href={`${appUrl}/ocai/${c.token}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}>Link</a>
                       </>
                     )}
                   </div>
@@ -190,7 +200,7 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
       </div>
 
       {/* Por dimensão */}
-      {resultado.totalRespostas > 0 && (
+      {resultado.totalRespostas > 0 && !suppressed && (
         <div style={{ marginTop: '24px' }}>
           <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Resultado por Dimensão

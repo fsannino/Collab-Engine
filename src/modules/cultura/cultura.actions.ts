@@ -1,12 +1,14 @@
 'use server';
 
 import { z } from 'zod';
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { resend } from '@/lib/resend';
 import type { ActionResult } from '@/shared/types/action-result';
 import { DIMENSOES } from './cultura.utils';
+import { hashIp } from '@/lib/ocai/engine';
 
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab Engine <noreply@collabz.com.br>';
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';
@@ -31,7 +33,8 @@ const convidarSchema = z.object({
 });
 
 const respostaSchema = z.object({
-  token: z.string().uuid(),
+  token:   z.string().uuid(),
+  consent: z.literal(true),
   respostas: z.record(z.string(), z.object({
     atual:    z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
     desejado: z.object({ CLAN: z.number(), ADHOCRACY: z.number(), MARKET: z.number(), HIERARCHY: z.number() }),
@@ -220,6 +223,7 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
   const convite = await prisma.conviteOcai.findUnique({ where: { token } });
   if (!convite) return { ok: false, error: 'Link inválido ou expirado' };
   if (convite.respondidoEm) return { ok: false, error: 'Este convite já foi respondido' };
+  if (convite.status === 'OPTADO_OUT') return { ok: false, error: 'Participação recusada para este link' };
 
   for (const dim of DIMENSOES) {
     const d = respostas[dim.id];
@@ -230,15 +234,41 @@ export async function responderOcaiAction(raw: unknown): Promise<ActionResult<vo
     if (Math.abs(sumDesejado - 100) > 1) return { ok: false, error: `${dim.label} (desejado) deve somar 100 pontos` };
   }
 
+  // Collect privacy-safe request metadata
+  const hdrs       = await headers();
+  const rawIp      = hdrs.get('x-forwarded-for')?.split(',')[0]?.trim() ?? hdrs.get('x-real-ip') ?? 'unknown';
+  const ipHash     = hashIp(rawIp);
+  const userAgent  = hdrs.get('user-agent') ?? null;
+  const now        = new Date();
+
   await prisma.$transaction([
     prisma.respostaOcai.create({
-      data: { avaliacaoId: convite.avaliacaoId, conviteId: convite.id, respostas: respostas as object },
+      data: {
+        avaliacaoId: convite.avaliacaoId,
+        conviteId:   convite.id,
+        respostas:   respostas as object,
+        ipHash,
+        userAgent,
+      },
     }),
     prisma.conviteOcai.update({
       where: { id: convite.id },
-      data: { respondidoEm: new Date() },
+      data:  { respondidoEm: now, consentAt: now, status: 'CONCLUIDO' },
     }),
   ]);
+
+  return { ok: true, data: undefined };
+}
+
+export async function optarSairOcaiAction(token: string): Promise<ActionResult<void>> {
+  const convite = await prisma.conviteOcai.findUnique({ where: { token } });
+  if (!convite) return { ok: false, error: 'Link inválido' };
+  if (convite.respondidoEm) return { ok: false, error: 'Este convite já foi respondido' };
+
+  await prisma.conviteOcai.update({
+    where: { token },
+    data:  { status: 'OPTADO_OUT' },
+  });
 
   return { ok: true, data: undefined };
 }
