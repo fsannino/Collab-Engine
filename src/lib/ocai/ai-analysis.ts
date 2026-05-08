@@ -75,7 +75,7 @@ Responda EXCLUSIVAMENTE em JSON com esta estrutura (sem markdown, sem explica√ß√
   };
 }
 
-export const gerarAnaliseOcai = (
+export const gerarAnaliseOcai = async (
   avaliacaoId: string,
   atual: OcaiValores,
   desejado: OcaiValores,
