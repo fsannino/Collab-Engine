@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { AttendanceForm } from './_attendance-form';
+import { SendInvitesButton } from './_send-invites-button';
 
 const MODALITY_LABEL: Record<string, string> = {
   PRESENCIAL:  'Presencial',
@@ -55,6 +56,7 @@ export default async function TurmaDetailPage({ params }: Props) {
           },
         },
         orderBy: { createdAt: 'asc' },
+        // include conviteEnviadoEm for invite tracking
       },
     },
   });
@@ -94,6 +96,22 @@ export default async function TurmaDetailPage({ params }: Props) {
           <span>{turma.inscricoes.length} inscritos</span>
         </div>
       </div>
+
+      {/* Invites */}
+      {!isConcluida && (
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-5 py-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Convites por e-mail</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {turma.inscricoes.filter((i) => !i.conviteEnviadoEm).length} de {turma.inscricoes.length} ainda não notificados
+            </p>
+          </div>
+          <SendInvitesButton
+            turmaId={turma.id}
+            pendingCount={turma.inscricoes.filter((i) => !i.conviteEnviadoEm).length}
+          />
+        </div>
+      )}
 
       {/* Attendance section */}
       <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">

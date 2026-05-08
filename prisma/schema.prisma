@@ -701,3 +701,28 @@ enum StatusEvento {
   FALHADO
   DESCARTADO
 }
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATION LOG (M5 — Issue 027)
+// ═══════════════════════════════════════════════════════════════
+
+enum NotificationLogType {
+  OVERDUE_TRAINING
+  TURMA_REMINDER
+  ATTENDANCE_REMINDER
+}
+
+model NotificationLog {
+  id             String              @id @default(uuid())
+  tenantId       String
+  type           NotificationLogType
+  recipientEmail String
+  subject        String
+  refId          String?             // turmaId or planId for deduplication
+
+  createdAt      DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([type, refId])
+  @@index([createdAt])
+}
