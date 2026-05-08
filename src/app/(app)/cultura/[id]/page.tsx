@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
-import { calcularResultado, DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.actions';
+import { calcularResultado, DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.utils';
 import RadarChart from '@/modules/cultura/RadarChart';
 import AvaliacaoControles from './_controles';
 

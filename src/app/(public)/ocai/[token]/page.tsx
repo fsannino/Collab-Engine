@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.actions';
+import { DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.utils';
 import OcaiForm from './_form';
 
 export default async function OcaiResponderPage({ params }: { params: Promise<{ token: string }> }) {
