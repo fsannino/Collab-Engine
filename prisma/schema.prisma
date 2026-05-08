@@ -38,6 +38,7 @@ model Tenant {
   changeImpacts      ChangeImpact[]
   trainingPlans      TrainingPlan[]
   avaliacoesCultura  AvaliacaoCultura[]
+  liderancas         Lideranca[]
 
   @@index([slug])
 }
@@ -129,6 +130,7 @@ model Project {
   stakeholderLinks   ProjectStakeholder[]
   trainingPlans      TrainingPlan[]
   avaliacoesCultura  AvaliacaoCultura[]
+  liderancas         Lideranca[]
 
   @@index([tenantId])
   @@index([status])
@@ -281,6 +283,7 @@ model Pessoa {
   treinamentos        PessoaTreinamento[]
   turmasComoInstrutor TurmaInstrutor[]
   convitesOcai        ConviteOcai[]      @relation("PessoaConvitesOcai")
+  liderancas          Lideranca[]
 
   @@index([tenantId])
   @@index([email])
@@ -398,6 +401,7 @@ model Area {
   pessoas           Pessoa[]          @relation("PessoaArea")
   cargos            Cargo[]           @relation("CargoArea")
   avaliacoesCultura AvaliacaoCultura[] @relation("AreaAvaliacoes")
+  liderancas        Lideranca[]
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -920,4 +924,47 @@ model NotificationLog {
   @@index([tenantId])
   @@index([type, refId])
   @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIDERANÇA (M7 — Leadership Console)
+// ═══════════════════════════════════════════════════════════════
+
+model Lideranca {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  pessoaId  String
+  pessoa    Pessoa    @relation(fields: [pessoaId], references: [id])
+  projectId String?
+  project   Project?  @relation(fields: [projectId], references: [id])
+  areaId    String?
+  area      Area?     @relation(fields: [areaId], references: [id])
+  papel     String
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  avaliacoes AvaliacaoLideranca[]
+
+  @@index([tenantId])
+  @@index([pessoaId])
+  @@index([projectId])
+  @@index([deletedAt])
+}
+
+model AvaliacaoLideranca {
+  id          String    @id @default(uuid())
+  liderancaId String
+  lideranca   Lideranca @relation(fields: [liderancaId], references: [id])
+  dimensao    String
+  pontuacao   Float
+  observacao  String?
+  avaliadoPor String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([liderancaId, dimensao])
+  @@index([liderancaId])
 }
