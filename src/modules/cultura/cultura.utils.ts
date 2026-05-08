@@ -83,3 +83,8 @@ export function calcularResultado(respostas: { respostas: unknown }[]): Resultad
 
   return { totalRespostas: n, media, geral: { atual: geralAtual, desejado: geralDesejado } };
 }
+
+// Returns the overall ATUAL average as a flat OcaiValores (for radar comparisons)
+export function calcularMediaGeral(respostas: { respostas: unknown }[]): OcaiValores {
+  return calcularResultado(respostas).geral.atual;
+}

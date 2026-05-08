@@ -87,8 +87,14 @@ export default function OcaiForm({ token, nomeRespondente, avaliacao, dimensoes,
   }
 
   function submit() {
+    // Transform AllValues { ATUAL: {[dim]: DimValues}, DESEJADO: {[dim]: DimValues} }
+    // into { [dim]: { atual: OcaiValores, desejado: OcaiValores } }
+    const respostas: Record<string, { atual: Record<string, number>; desejado: Record<string, number> }> = {};
+    for (const d of dimensoes) {
+      respostas[d.id] = { atual: values.ATUAL[d.id]!, desejado: values.DESEJADO[d.id]! };
+    }
     startTransition(async () => {
-      const res = await responderOcaiAction({ token, respostas: values });
+      const res = await responderOcaiAction({ token, respostas });
       if (res.ok) {
         setDone(true);
       } else {
