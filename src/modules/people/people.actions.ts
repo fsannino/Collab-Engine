@@ -9,16 +9,20 @@ import type { ActionResult } from '@/shared/types/action-result';
 // ─── Schemas ────────────────────────────────────────────────────────────────
 
 const createPessoaSchema = z.object({
-  nome:  z.string().min(2, 'Nome deve ter ao menos 2 caracteres').max(200),
-  email: z.string().email('E-mail inválido').optional().or(z.literal('')),
-  cpf:   z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos (sem pontuação)').optional().or(z.literal('')),
-  hrisId: z.string().max(100).optional().or(z.literal('')),
+  nome:               z.string().min(2, 'Nome deve ter ao menos 2 caracteres').max(200),
+  email:              z.string().email('E-mail inválido').optional().or(z.literal('')),
+  cpf:                z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos (sem pontuação)').optional().or(z.literal('')),
+  hrisId:             z.string().max(100).optional().or(z.literal('')),
+  areaId:             z.string().uuid().optional().or(z.literal('')),
+  superiorId:         z.string().uuid().optional().or(z.literal('')),
+  localidadeTrabalho: z.string().max(200).optional().or(z.literal('')),
 });
 
 const createCargoSchema = z.object({
   nome:     z.string().min(2).max(200),
   nivel:    z.string().max(100).optional().or(z.literal('')),
   descricao: z.string().max(1000).optional().or(z.literal('')),
+  areaId:   z.string().uuid().optional().or(z.literal('')),
 });
 
 const createFuncaoSchema = z.object({
@@ -53,15 +57,18 @@ export async function createPessoaAction(raw: unknown): Promise<ActionResult<{ i
   const parsed = createPessoaSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
-  const { nome, email, cpf, hrisId } = parsed.data;
+  const { nome, email, cpf, hrisId, areaId, superiorId, localidadeTrabalho } = parsed.data;
 
   const pessoa = await prisma.pessoa.create({
     data: {
-      tenantId: session.tenantId,
+      tenantId:           session.tenantId,
       nome,
-      email: email || null,
-      cpf:   cpf   || null,
-      hrisId: hrisId || null,
+      email:              email              || null,
+      cpf:                cpf                || null,
+      hrisId:             hrisId             || null,
+      areaId:             areaId             || null,
+      superiorId:         superiorId         || null,
+      localidadeTrabalho: localidadeTrabalho || null,
     },
   });
 
@@ -93,10 +100,11 @@ export async function createCargoAction(raw: unknown): Promise<ActionResult<{ id
 
   const cargo = await prisma.cargo.create({
     data: {
-      tenantId: session.tenantId,
-      nome:     parsed.data.nome,
-      nivel:    parsed.data.nivel || null,
+      tenantId:  session.tenantId,
+      nome:      parsed.data.nome,
+      nivel:     parsed.data.nivel    || null,
       descricao: parsed.data.descricao || null,
+      areaId:    parsed.data.areaId   || null,
     },
   });
 

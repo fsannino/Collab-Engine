@@ -34,6 +34,7 @@ model Tenant {
   funcoes       Funcao[]
   areas         Area[]
   processos     Processo[]
+  macroprocessos Macroprocesso[]
   changeImpacts ChangeImpact[]
   trainingPlans TrainingPlan[]
 
@@ -676,24 +677,44 @@ model InscricaoTurma {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PROCESSO (local, com link opcional ao XPROC)
+// MACROPROCESSO → PROCESSO (hierarquia local, link opcional ao XPROC)
 // ═══════════════════════════════════════════════════════════════
 
+model Macroprocesso {
+  id                    String    @id @default(uuid())
+  tenantId              String
+  tenant                Tenant    @relation(fields: [tenantId], references: [id])
+  nome                  String
+  descricao             String?
+  xprocMacroprocessoId  String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+
+  processos             Processo[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
 model Processo {
-  id              String    @id @default(uuid())
+  id              String         @id @default(uuid())
   tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  macroprocessoId String?
+  macroprocesso   Macroprocesso? @relation(fields: [macroprocessoId], references: [id])
   nome            String
   descricao       String?
   xprocProcessoId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   deletedAt       DateTime?
 
   funcoes         FuncaoProcesso[]
 
-  @@unique([tenantId, nome])
   @@index([tenantId])
+  @@index([macroprocessoId])
   @@index([deletedAt])
 }
 
