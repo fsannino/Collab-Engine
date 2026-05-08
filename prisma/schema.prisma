@@ -29,9 +29,11 @@ model Tenant {
   users         User[]
   projects      Project[]
   stakeholders  Stakeholder[]
+  pessoas       Pessoa[]
   cargos        Cargo[]
   funcoes       Funcao[]
   areas         Area[]
+  processos     Processo[]
   changeImpacts ChangeImpact[]
   trainingPlans TrainingPlan[]
 
@@ -253,23 +255,32 @@ model ProjectStakeholder {
 // ═══════════════════════════════════════════════════════════════
 
 model Pessoa {
-  id        String   @id @default(uuid())
-  tenantId  String
-  nome      String
-  email     String?
-  cpf       String?
-  hrisId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  nome                String
+  email               String?
+  cpf                 String?
+  hrisId              String?
+  areaId              String?
+  area                Area?    @relation("PessoaArea", fields: [areaId], references: [id])
+  superiorId          String?
+  superior            Pessoa?  @relation("PessoaHierarquia", fields: [superiorId], references: [id])
+  subordinados        Pessoa[] @relation("PessoaHierarquia")
+  localidadeTrabalho  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
 
-  cargosHistorico PessoaCargo[]
-  funcoesAtuais   PessoaFuncao[]
-  stakeholders    Stakeholder[]
-  treinamentos    PessoaTreinamento[]
+  cargosHistorico     PessoaCargo[]
+  funcoesAtuais       PessoaFuncao[]
+  stakeholders        Stakeholder[]
+  treinamentos        PessoaTreinamento[]
+  turmasComoInstrutor TurmaInstrutor[]
 
   @@index([tenantId])
   @@index([email])
+  @@index([areaId])
   @@index([deletedAt])
 }
 
@@ -280,12 +291,15 @@ model Cargo {
   nome      String
   nivel     String?
   descricao String?
+  areaId    String?
+  area      Area?       @relation("CargoArea", fields: [areaId], references: [id])
   createdAt DateTime    @default(now())
   deletedAt DateTime?
 
   pessoas PessoaCargo[]
 
   @@unique([tenantId, nome])
+  @@index([areaId])
   @@index([deletedAt])
 }
 
@@ -339,13 +353,16 @@ model FuncaoProcesso {
   id              String          @id @default(uuid())
   funcaoId        String
   funcao          Funcao          @relation(fields: [funcaoId], references: [id])
-  xprocProcessoId String
+  processoId      String?
+  processo        Processo?       @relation(fields: [processoId], references: [id])
+  xprocProcessoId String?
   papel           PapelNoProcesso
   observacao      String?
   createdAt       DateTime        @default(now())
   deletedAt       DateTime?
 
-  @@unique([funcaoId, xprocProcessoId])
+  @@index([funcaoId])
+  @@index([processoId])
   @@index([deletedAt])
 }
 
@@ -373,6 +390,8 @@ model Area {
   deletedAt DateTime?
 
   impactAreas ImpactArea[]
+  pessoas     Pessoa[]     @relation("PessoaArea")
+  cargos      Cargo[]      @relation("CargoArea")
 
   @@unique([tenantId, nome])
   @@index([deletedAt])
@@ -539,6 +558,7 @@ model TrainingItem {
   funcoes     FuncaoTreinamento[]
   pessoas     PessoaTreinamento[]
   turmas      Turma[]
+  materiais   TrainingMaterial[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -553,6 +573,9 @@ enum Modality {
   ONLINE
   HIBRIDO
   AUTOESTUDO
+  DINAMICA
+  ONE_ON_ONE
+  MULTIPLICADOR
 }
 
 model FuncaoTreinamento {
@@ -602,16 +625,17 @@ model Turma {
   trainingItemId String
   trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
 
-  nome       String
-  dataInicio DateTime
-  dataFim    DateTime
-  modality   Modality
-  local      String?
-  instrutorId String?      // userId
-  capacidade  Int?
-  status      TurmaStatus  @default(AGENDADA)
+  nome                String
+  dataInicio          DateTime
+  dataFim             DateTime
+  modality            Modality
+  local               String?
+  capacidade          Int?
+  notaLimiteAprovacao Float?   // nota mínima de aprovação (ex: 60.0)
+  status              TurmaStatus @default(AGENDADA)
 
   inscricoes  InscricaoTurma[]
+  instrutores TurmaInstrutor[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -637,16 +661,84 @@ model InscricaoTurma {
   pessoaTreinamentoId String
   pessoaTreinamento   PessoaTreinamento @relation(fields: [pessoaTreinamentoId], references: [id])
 
-  presente        Boolean?  // null = não marcado; true = presente; false = ausente
-  notaAvaliacao   Int?      @db.SmallInt // 1-5
-  observacao      String?
+  presente         Boolean?  // null = não marcado; true = presente; false = ausente
+  notaAvaliacao    Int?      @db.SmallInt // avaliação qualitativa 1-5
+  notaExame        Float?    // nota da prova (escala definida pela turma, ex: 0-100)
+  aprovado         Boolean?  // calculado: notaExame >= turma.notaLimiteAprovacao
+  observacao       String?
   conviteEnviadoEm DateTime?
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([turmaId, pessoaTreinamentoId])
   @@index([turmaId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESSO (local, com link opcional ao XPROC)
+// ═══════════════════════════════════════════════════════════════
+
+model Processo {
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  nome            String
+  descricao       String?
+  xprocProcessoId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  funcoes         FuncaoProcesso[]
+
+  @@unique([tenantId, nome])
+  @@index([tenantId])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TURMA INSTRUTOR (múltiplos instrutores por turma)
+// ═══════════════════════════════════════════════════════════════
+
+model TurmaInstrutor {
+  id        String   @id @default(uuid())
+  turmaId   String
+  turma     Turma    @relation(fields: [turmaId], references: [id])
+  pessoaId  String
+  pessoa    Pessoa   @relation(fields: [pessoaId], references: [id])
+  principal Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([turmaId, pessoaId])
+  @@index([turmaId])
+  @@index([pessoaId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRAINING MATERIAL
+// ═══════════════════════════════════════════════════════════════
+
+enum MaterialTipo {
+  ONLINE
+  FISICO
+  DIGITAL
+}
+
+model TrainingMaterial {
+  id             String       @id @default(uuid())
+  trainingItemId String
+  trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
+  tipo           MaterialTipo
+  titulo         String
+  url            String?
+  descricao      String?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([trainingItemId])
+  @@index([deletedAt])
 }
 
 // ═══════════════════════════════════════════════════════════════

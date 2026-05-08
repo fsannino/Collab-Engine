@@ -165,38 +165,33 @@ async function notifyTurmasAmanha(): Promise<CronResult> {
       }
     }
 
-    // Notify instrutor
-    if (turma.instrutorId) {
-      const instrutor = await prisma.user.findFirst({
-        where: { id: turma.instrutorId, deletedAt: null },
-        select: { email: true, name: true },
+    // Notify instrutores (via TurmaInstrutor join table)
+    const instrutores = await prisma.turmaInstrutor.findMany({
+      where: { turmaId: turma.id },
+      include: { pessoa: { select: { email: true, nome: true } } },
+    });
+    for (const ti of instrutores) {
+      if (!ti.pessoa.email) { skipped++; continue; }
+      const refId = `turma-reminder-${turma.id}-instrutor-${ti.pessoaId}`;
+      if (await alreadySentToday('TURMA_REMINDER', refId, ti.pessoa.email)) { skipped++; continue; }
+      const { subject, html } = buildTurmaReminderEmail({
+        recipientName: ti.pessoa.nome,
+        treinamento:   turma.trainingItem.title,
+        turmaNome:     turma.nome,
+        dataInicio:    turma.dataInicio,
+        dataFim:       turma.dataFim,
+        local:         turma.local,
+        modality:      turma.modality,
+        isInstrutor:   true,
+        appUrl:        APP_URL,
+        turmaId:       turma.id,
       });
-      if (instrutor) {
-        const refId = `turma-reminder-${turma.id}-instrutor`;
-        if (!(await alreadySentToday('TURMA_REMINDER', refId, instrutor.email))) {
-          const { subject, html } = buildTurmaReminderEmail({
-            recipientName: instrutor.name,
-            treinamento:   turma.trainingItem.title,
-            turmaNome:     turma.nome,
-            dataInicio:    turma.dataInicio,
-            dataFim:       turma.dataFim,
-            local:         turma.local,
-            modality:      turma.modality,
-            isInstrutor:   true,
-            appUrl:        APP_URL,
-            turmaId:       turma.id,
-          });
-
-          const ok = await sendEmail(instrutor.email, subject, html);
-          if (ok) {
-            await logSent(tenantId, 'TURMA_REMINDER', instrutor.email, subject, refId);
-            sent++;
-          } else {
-            errors++;
-          }
-        } else {
-          skipped++;
-        }
+      const ok = await sendEmail(ti.pessoa.email, subject, html);
+      if (ok) {
+        await logSent(tenantId, 'TURMA_REMINDER', ti.pessoa.email, subject, refId);
+        sent++;
+      } else {
+        errors++;
       }
     }
   }
@@ -230,35 +225,37 @@ async function notifyAttendancePending(): Promise<CronResult> {
   });
 
   for (const turma of turmas) {
-    if (!turma.instrutorId) { skipped++; continue; }
-
-    const instrutor = await prisma.user.findFirst({
-      where: { id: turma.instrutorId, deletedAt: null },
-      select: { email: true, name: true },
-    });
-    if (!instrutor) { skipped++; continue; }
-
-    const refId = `attendance-${turma.id}`;
-    if (await alreadySentToday('ATTENDANCE_REMINDER', refId, instrutor.email)) { skipped++; continue; }
-
     const pendentes = turma.inscricoes.filter((i) => i.presente === null).length;
-
-    const { subject, html } = buildAttendanceReminderEmail({
-      instrutorName: instrutor.name,
-      treinamento:   turma.trainingItem.title,
-      turmaNome:     turma.nome,
-      dataFim:       turma.dataFim,
-      pendentes,
-      appUrl:        APP_URL,
-      turmaId:       turma.id,
+    const instrutores = await prisma.turmaInstrutor.findMany({
+      where: { turmaId: turma.id },
+      include: { pessoa: { select: { email: true, nome: true } } },
     });
 
-    const ok = await sendEmail(instrutor.email, subject, html);
-    if (ok) {
-      await logSent(turma.trainingItem.plan.tenantId, 'ATTENDANCE_REMINDER', instrutor.email, subject, refId);
-      sent++;
-    } else {
-      errors++;
+    if (instrutores.length === 0) { skipped++; continue; }
+
+    for (const ti of instrutores) {
+      if (!ti.pessoa.email) { skipped++; continue; }
+
+      const refId = `attendance-${turma.id}-${ti.pessoaId}`;
+      if (await alreadySentToday('ATTENDANCE_REMINDER', refId, ti.pessoa.email)) { skipped++; continue; }
+
+      const { subject, html } = buildAttendanceReminderEmail({
+        instrutorName: ti.pessoa.nome,
+        treinamento:   turma.trainingItem.title,
+        turmaNome:     turma.nome,
+        dataFim:       turma.dataFim,
+        pendentes,
+        appUrl:        APP_URL,
+        turmaId:       turma.id,
+      });
+
+      const ok = await sendEmail(ti.pessoa.email, subject, html);
+      if (ok) {
+        await logSent(turma.trainingItem.plan.tenantId, 'ATTENDANCE_REMINDER', ti.pessoa.email, subject, refId);
+        sent++;
+      } else {
+        errors++;
+      }
     }
   }
 

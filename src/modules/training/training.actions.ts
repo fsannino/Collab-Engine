@@ -19,14 +19,14 @@ const createPlanSchema = z.object({
 });
 
 const createTurmaSchema = z.object({
-  trainingItemId: z.string().uuid(),
-  nome:           z.string().min(2).max(200),
-  dataInicio:     z.coerce.date(),
-  dataFim:        z.coerce.date(),
-  modality:       z.enum(['PRESENCIAL', 'ONLINE', 'HIBRIDO', 'AUTOESTUDO']),
-  local:          z.string().max(300).optional().or(z.literal('')),
-  instrutorId:    z.string().uuid().optional().or(z.literal('')),
-  capacidade:     z.coerce.number().int().min(1).optional(),
+  trainingItemId:      z.string().uuid(),
+  nome:                z.string().min(2).max(200),
+  dataInicio:          z.coerce.date(),
+  dataFim:             z.coerce.date(),
+  modality:            z.enum(['PRESENCIAL', 'ONLINE', 'HIBRIDO', 'AUTOESTUDO', 'DINAMICA', 'ONE_ON_ONE', 'MULTIPLICADOR']),
+  local:               z.string().max(300).optional().or(z.literal('')),
+  capacidade:          z.coerce.number().int().min(1).optional(),
+  notaLimiteAprovacao: z.coerce.number().min(0).max(100).optional(),
 });
 
 const savePresencaSchema = z.object({
@@ -84,7 +84,7 @@ export async function createTurmaAction(raw: unknown): Promise<ActionResult<{ id
   const parsed = createTurmaSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
 
-  const { trainingItemId, nome, dataInicio, dataFim, modality, local, instrutorId, capacidade } = parsed.data;
+  const { trainingItemId, nome, dataInicio, dataFim, modality, local, capacidade, notaLimiteAprovacao } = parsed.data;
 
   const turma = await prisma.turma.create({
     data: {
@@ -93,9 +93,9 @@ export async function createTurmaAction(raw: unknown): Promise<ActionResult<{ id
       dataInicio,
       dataFim,
       modality,
-      local:       local       || null,
-      instrutorId: instrutorId || null,
-      capacidade:  capacidade  ?? null,
+      local:               local               || null,
+      capacidade:          capacidade          ?? null,
+      notaLimiteAprovacao: notaLimiteAprovacao ?? null,
     },
   });
 
