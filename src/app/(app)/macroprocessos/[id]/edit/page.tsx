@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import MacroprocessoEditForm from './_form';
 
-export const metadata = { title: 'Editar Macroprocesso — Collab Engine' };
+export const metadata = { title: 'Editar Macroprocesso — Collab:Evolve' };
 
 export default async function EditMacroprocessoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

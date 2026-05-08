@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 
-export const metadata = { title: 'Cargo — Collab Engine' };
+export const metadata = { title: 'Cargo — Collab:Evolve' };
 
 type Props = { params: Promise<{ id: string }> };
 

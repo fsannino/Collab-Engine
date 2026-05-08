@@ -4,7 +4,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { getOcaiAreaScope, buildAreaFilter } from '@/lib/ocai/manager-scope';
 
-export const metadata = { title: 'Cultura Organizacional — Collab Engine' };
+export const metadata = { title: 'Cultura Organizacional — Collab:Evolve' };
 
 const STATUS_LABEL: Record<string, string> = {
   RASCUNHO:  'Rascunho',

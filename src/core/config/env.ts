@@ -7,7 +7,7 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().default(''),
   COOKIE_NAME: z.string().default('collab_session'),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default('Collab Engine <noreply@example.com>'),
+  EMAIL_FROM: z.string().default('Collab:Evolve <noreply@example.com>'),
   ANTHROPIC_API_KEY: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

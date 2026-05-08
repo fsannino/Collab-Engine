@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { computeRiskSeverity, getRiskZone } from '@/modules/risk/risk.utils'
 
-export const metadata = { title: 'Risk Log — Collab Engine' }
+export const metadata = { title: 'Risk Log — Collab:Evolve' }
 
 const ZONE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   GREEN:  { bg: '#dcfce7', color: '#166534', label: 'Verde'    },

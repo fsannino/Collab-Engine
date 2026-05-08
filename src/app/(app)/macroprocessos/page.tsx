@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 
-export const metadata = { title: 'Macroprocessos — Collab Engine' };
+export const metadata = { title: 'Macroprocessos — Collab:Evolve' };
 
 export default async function MacroprocessosPage() {
   const session = await getSession();

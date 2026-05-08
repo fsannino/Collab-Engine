@@ -7,7 +7,7 @@ import {
 } from '@/emails/cron-notifications';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://engine.collabz.com.br';
-const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab Engine <noreply@collabz.com.br>';
+const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab:Evolve <noreply@collabz.com.br>';
 
 type CronResult = { type: string; sent: number; skipped: number; errors: number };
 

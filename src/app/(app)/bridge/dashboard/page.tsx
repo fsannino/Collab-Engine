@@ -74,7 +74,7 @@ export default async function BridgeDashboardPage() {
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f2244', margin: 0 }}>Dashboard Cross-Sistema</h1>
           </div>
           <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0 14px' }}>
-            Saúde unificada — SMR Projetos + Collab Engine + XPROC
+            Saúde unificada — Collab:Build + Collab:Evolve + Collab:Flow (suite Collab:Engine)
           </p>
         </div>
         <RefreshBtn />

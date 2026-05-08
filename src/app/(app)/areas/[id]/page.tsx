@@ -4,7 +4,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import AreaForm from '../new/_form';
 
-export const metadata = { title: 'Área — Collab Engine' };
+export const metadata = { title: 'Área — Collab:Evolve' };
 
 type Props = { params: Promise<{ id: string }> };
 

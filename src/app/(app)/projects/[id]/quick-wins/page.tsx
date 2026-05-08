@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
-export const metadata = { title: 'Quick Wins — Collab Engine' }
+export const metadata = { title: 'Quick Wins — Collab:Evolve' }
 
 type QuickWinStatus = 'BACKLOG' | 'IN_PROGRESS' | 'DONE' | 'DROPPED'
 

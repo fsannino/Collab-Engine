@@ -16,7 +16,7 @@ const dmSerif = DM_Serif_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'Collab Engine',
+  title: 'Collab:Evolve',
   description: 'Plataforma de orquestração de mudança organizacional — CollabZ',
 }
 

@@ -392,7 +392,7 @@ export async function sendInvitationsAction(turmaId: string): Promise<ActionResu
     });
 
     const { error } = await resend.emails.send({
-      from:    'Collab Engine <treinamentos@collabz.com.br>',
+      from:    'Collab:Evolve <treinamentos@collabz.com.br>',
       to:      pessoa.email,
       subject,
       html,

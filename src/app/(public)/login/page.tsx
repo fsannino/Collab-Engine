@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getSession } from '@/core/auth/session'
 import LoginForm from './login-form'
 
-export const metadata = { title: 'Login — Collab Engine' }
+export const metadata = { title: 'Login — Collab:Evolve' }
 
 export default async function LoginPage() {
   const session = await getSession()
@@ -32,7 +32,7 @@ export default async function LoginPage() {
               <path d="M10 6L14 8.5V13.5L10 16L6 13.5V8.5L10 6Z" fill="white" fillOpacity="0.3"/>
             </svg>
           </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Collab Engine</span>
+          <span className="text-white font-semibold text-lg tracking-tight">Collab:Evolve</span>
         </div>
 
         {/* Central content */}
@@ -77,7 +77,7 @@ export default async function LoginPage() {
                 <path d="M10 2L17 6V14L10 18L3 14V6L10 2Z" stroke="white" strokeWidth="1.5" fill="none"/>
               </svg>
             </div>
-            <span className="text-slate-900 font-semibold text-lg">Collab Engine</span>
+            <span className="text-slate-900 font-semibold text-lg">Collab:Evolve</span>
           </div>
 
           {/* Heading */}

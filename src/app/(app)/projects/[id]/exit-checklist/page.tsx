@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { upsertExitChecklistAction as _upsertExitChecklistAction } from '@/modules/exit-checklist/exit-checklist.actions'
 
-export const metadata = { title: 'Exit Strategy Checklist — Collab Engine' }
+export const metadata = { title: 'Exit Strategy Checklist — Collab:Evolve' }
 
 const STATUS_STYLE = {
   PENDING:   { bg: '#f1f5f9', color: '#475569', label: 'Pendente'    },

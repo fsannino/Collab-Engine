@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { computeProjectRoi, upsertFinancialAction } from '@/modules/financial/financial.actions'
 
-export const metadata = { title: 'ROI do Projeto — Collab Engine' }
+export const metadata = { title: 'ROI do Projeto — Collab:Evolve' }
 
 function fmt(value: number, currency = 'BRL') {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)

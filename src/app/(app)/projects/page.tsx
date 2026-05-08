@@ -32,7 +32,7 @@ const TYPE_LABEL: Record<string, string> = {
   CULTURAL_TRANSFORMATION:'Transformação Cultural',
 }
 
-export const metadata = { title: 'Projetos — Collab Engine' }
+export const metadata = { title: 'Projetos — Collab:Evolve' }
 
 export default async function ProjectsPage() {
   const session = await getSession()

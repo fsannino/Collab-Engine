@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div style={{ padding: '20px 18px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <BrandMark />
           <div>
-            <div style={{ color: '#fff', fontWeight: 700, fontSize: '14px', lineHeight: 1.2, letterSpacing: '-0.01em' }}>Collab Engine</div>
+            <div style={{ color: '#fff', fontWeight: 700, fontSize: '14px', lineHeight: 1.2, letterSpacing: '-0.01em' }}>Collab:Evolve</div>
             <div style={{ color: '#c9a227', fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', marginTop: '3px', fontWeight: 600 }}>Mudança &amp; Governança</div>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
-export const metadata = { title: 'Portfolio — Collab Engine' }
+export const metadata = { title: 'Portfolio — Collab:Evolve' }
 
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   PLANNING:   { bg: '#f1f5f9', color: '#475569', label: 'Planejamento' },
