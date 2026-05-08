@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createTrainingPlanSchema = z.object({
-  projectId:   z.string().uuid(),
+  projectId:   z.string().uuid({ message: 'Projeto inválido. Acesse o plano a partir de um projeto.' }),
   name:        z.string().min(3).max(200),
   description: z.string().max(1000).optional().or(z.literal('')),
   startDate:   z.coerce.date().optional(),
