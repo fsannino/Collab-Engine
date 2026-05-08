@@ -9,6 +9,9 @@ import { ActivityStatusForm } from '@/shared/components/ActivityStatusForm';
 import { AddAcompanhamentoForm } from '@/shared/components/AddAcompanhamentoForm';
 import { HeatmapMatrix } from '@/shared/components/HeatmapMatrix';
 import { calculateZone, zoneBgColor, zoneLabel } from '@/shared/governance/scoring';
+import { calcularResultado } from '@/modules/cultura/cultura.utils';
+import { perfilDominante } from '@/lib/ocai/engine';
+import { adjustImpactSeverityByCulture, describeAdjustment, type ImpactDimension } from '@/lib/ocai/cultural-severity';
 
 const DIMENSION_LABEL: Record<string, string> = {
   PROCESS:    'Processo',
@@ -27,7 +30,7 @@ export default async function ImpactDetailPage({ params }: Props) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const [impact, peers] = await Promise.all([
+  const [impact, peers, latestCultural] = await Promise.all([
     prisma.changeImpact.findFirst({
       where: { id: iid, deletedAt: null, project: { tenantId: session.tenantId } },
       include: {
@@ -40,8 +43,23 @@ export default async function ImpactDetailPage({ params }: Props) {
       where: { projectId, deletedAt: null, project: { tenantId: session.tenantId } },
       select: { id: true, title: true, severityScore: true, extentScore: true },
     }),
+    prisma.avaliacaoCultura.findFirst({
+      where: { projectId, tenantId: session.tenantId, status: 'ENCERRADA', deletedAt: null },
+      include: { respostas: true },
+      orderBy: { dataFim: 'desc' },
+    }),
   ]);
   if (!impact) notFound();
+
+  // Cultural severity adjustment (informational, not overriding base score)
+  const culturalAdj = (() => {
+    if (!latestCultural || latestCultural.respostas.length < (latestCultural.minGroupSize ?? 3)) return null;
+    const resultado = calcularResultado(latestCultural.respostas);
+    const dominante = perfilDominante(resultado.geral.atual);
+    const dim = impact.dimension as ImpactDimension;
+    if (!['PROCESS', 'PEOPLE', 'TECHNOLOGY', 'STRUCTURE', 'CULTURE'].includes(dim)) return null;
+    return adjustImpactSeverityByCulture(impact.severityScore, dim, dominante.tipo);
+  })();
 
   const zone = calculateZone(impact.score);
 
@@ -76,6 +94,18 @@ export default async function ImpactDetailPage({ params }: Props) {
               <span className="text-xs bg-gray-100 rounded-full px-2 py-0.5 text-gray-600">{DIMENSION_LABEL[impact.dimension]}</span>
               <ImpactStatusBadge status={impact.status} size="sm" />
               <span className="text-xs text-gray-400">Sev {impact.severityScore} · Ext {impact.extentScore}</span>
+              {culturalAdj && culturalAdj.multiplier !== 1.0 && (
+                <span
+                  className="text-xs rounded-full px-2 py-0.5 font-medium"
+                  style={{
+                    background: culturalAdj.multiplier > 1 ? '#fef3c7' : '#dcfce7',
+                    color:      culturalAdj.multiplier > 1 ? '#92400e' : '#166534',
+                  }}
+                  title={describeAdjustment(culturalAdj)}
+                >
+                  Sev ajustada {culturalAdj.adjusted.toFixed(1)} ({culturalAdj.multiplier > 1 ? '+' : ''}{Math.round((culturalAdj.multiplier - 1) * 100)}%)
+                </span>
+              )}
             </div>
           </div>
         </div>
