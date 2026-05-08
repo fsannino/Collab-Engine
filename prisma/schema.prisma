@@ -39,6 +39,13 @@ model Tenant {
   trainingPlans      TrainingPlan[]
   avaliacoesCultura  AvaliacaoCultura[]
   liderancas         Lideranca[]
+  risks              Risk[]
+  changePlanItems    ChangePlanItem[]
+  resistanceItems    ResistanceItem[]
+  quickWins          QuickWin[]
+  exitChecklist      ExitChecklistItem[]
+  controlPlan        ControlPlanItem[]
+  financialActions   FinancialAction[]
 
   @@index([slug])
 }
@@ -133,6 +140,14 @@ model Project {
   trainingPlans      TrainingPlan[]
   avaliacoesCultura  AvaliacaoCultura[]
   liderancas         Lideranca[]
+  risks              Risk[]
+  changePlanItems    ChangePlanItem[]
+  resistanceItems    ResistanceItem[]
+  quickWins          QuickWin[]
+  afterActionReview  AfterActionReview?
+  exitChecklist      ExitChecklistItem[]
+  controlPlan        ControlPlanItem[]
+  financialActions   FinancialAction[]
 
   @@index([tenantId])
   @@index([status])
@@ -220,11 +235,15 @@ model Stakeholder {
   organizationLevel StakeholderLevel?
   pessoaId          String?
   pessoa            Pessoa?            @relation(fields: [pessoaId], references: [id])
+  reportsToId       String?
+  reportsTo         Stakeholder?       @relation("StakeholderHierarchy", fields: [reportsToId], references: [id])
+  directReports     Stakeholder[]      @relation("StakeholderHierarchy")
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   deletedAt         DateTime?
 
-  projectLinks ProjectStakeholder[]
+  projectLinks    ProjectStakeholder[]
+  resistanceItems ResistanceItem[]
 
   @@index([tenantId])
   @@index([deletedAt])
@@ -986,4 +1005,391 @@ model AvaliacaoLideranca {
 
   @@unique([liderancaId, dimensao])
   @@index([liderancaId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RISK LOG (GM) — com origem N:M via RiskSource
+// ═══════════════════════════════════════════════════════════════
+
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  CLOSED
+  ACCEPTED
+}
+
+enum RiskSourceModule {
+  GM
+  XPROC
+  PMO
+  EXTERNAL
+}
+
+enum RiskSourceEntityType {
+  HISTORY_ASSESSMENT
+  CULTURE_DIMENSION
+  GAP_ANALYSIS
+  CHANGE_IMPACT
+  MULTIPLE_CHANGE
+  PROJECT_INITIATION
+  MANUAL
+}
+
+model Risk {
+  id          String     @id @default(uuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  projectId   String
+  project     Project    @relation(fields: [projectId], references: [id])
+
+  description String
+  impact      Int        @db.SmallInt // 1-5
+  probability Int        @db.SmallInt // 1-5
+  // severity = impact * probability — calculado no servidor
+  mitigation  String?
+  status      RiskStatus @default(OPEN)
+  ownerId     String?
+  dueAt       DateTime?
+  closedAt    DateTime?
+
+  createdBy   String
+  updatedBy   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  sources          RiskSource[]
+  changePlanItems  ChangePlanItem[]
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model RiskSource {
+  id             String               @id @default(uuid())
+  riskId         String
+  risk           Risk                 @relation(fields: [riskId], references: [id])
+
+  sourceModule     RiskSourceModule
+  sourceEntityType RiskSourceEntityType
+  sourceEntityId   String?            // uuid da entidade de origem (nullable para MANUAL)
+  notes            String?
+
+  identifiedAt   DateTime             @default(now())
+  identifiedBy   String
+
+  @@unique([riskId, sourceModule, sourceEntityType, sourceEntityId])
+  @@index([riskId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE PLAN ITEM — ações derivadas de riscos
+// ═══════════════════════════════════════════════════════════════
+
+enum ChangePlanLever {
+  COMMUNICATION
+  SPONSORSHIP
+  TRAINING
+  COACHING
+  RESISTANCE_MANAGEMENT
+  PROCESS_REDESIGN
+  TECHNOLOGY
+  ORGANIZATION_DESIGN
+  OTHER
+}
+
+enum ChangePlanStatus {
+  DRAFT
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model ChangePlanItem {
+  id          String           @id @default(uuid())
+  tenantId    String
+  tenant      Tenant           @relation(fields: [tenantId], references: [id])
+  projectId   String
+  project     Project          @relation(fields: [projectId], references: [id])
+  sourceRiskId String?
+  sourceRisk  Risk?            @relation(fields: [sourceRiskId], references: [id])
+
+  lever       ChangePlanLever
+  description String
+  ownerId     String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      ChangePlanStatus @default(DRAFT)
+  pctComplete Int              @default(0) @db.SmallInt
+
+  estimatedCost Float?
+  actualCost    Float?
+
+  cancellationReason String?  // preenchido quando cancelado por fechamento de risco
+
+  createdBy   String
+  updatedBy   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  financialActions FinancialAction[]
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([sourceRiskId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESISTANCE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+enum ResistanceIntensity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ResistanceStatus {
+  IDENTIFIED
+  BEING_ADDRESSED
+  RESOLVED
+  ACCEPTED
+}
+
+model ResistanceItem {
+  id              String              @id @default(uuid())
+  tenantId        String
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id])
+  stakeholderId   String?
+  stakeholder     Stakeholder?        @relation(fields: [stakeholderId], references: [id])
+
+  description     String
+  rootCause       String?
+  intensity       ResistanceIntensity @default(MEDIUM)
+  status          ResistanceStatus    @default(IDENTIFIED)
+  mitigationPlan  String?
+  resolvedAt      DateTime?
+
+  createdBy       String
+  updatedBy       String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([stakeholderId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUICK WINS
+// ═══════════════════════════════════════════════════════════════
+
+enum QuickWinStatus {
+  BACKLOG
+  IN_PROGRESS
+  DONE
+  DROPPED
+}
+
+model QuickWin {
+  id          String         @id @default(uuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+  projectId   String
+  project     Project        @relation(fields: [projectId], references: [id])
+
+  title       String
+  description String?
+  ownerId     String?
+  targetDate  DateTime?
+  status      QuickWinStatus @default(BACKLOG)
+  impact      Int            @default(3) @db.SmallInt // 1-5
+  effort      Int            @default(3) @db.SmallInt // 1-5 (1=baixo esforço)
+  completedAt DateTime?
+
+  createdBy   String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AFTER ACTION REVIEW
+// ═══════════════════════════════════════════════════════════════
+
+model AfterActionReview {
+  id              String    @id @default(uuid())
+  tenantId        String    // denormalizado para queries por tenant
+  projectId       String    @unique
+  project         Project   @relation(fields: [projectId], references: [id])
+
+  whatWorked      String?   // markdown
+  whatDidntWork   String?   // markdown
+  lessons         String?   // markdown
+  recommendations String?   // markdown
+  participants    String[]
+
+  conductedAt     DateTime?
+  conductedBy     String?
+
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXIT STRATEGY CHECKLIST
+// ═══════════════════════════════════════════════════════════════
+
+enum ChecklistItemStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  WAIVED
+}
+
+model ExitChecklistItem {
+  id                   String              @id @default(uuid())
+  tenantId             String
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  projectId            String
+  project              Project             @relation(fields: [projectId], references: [id])
+
+  criterion            String
+  evidenceRequired     String?
+  evidenceDescription  String?
+  status               ChecklistItemStatus @default(PENDING)
+  approvedBy           String?
+  approvedAt           DateTime?
+  order                Int                 @default(0)
+
+  createdBy            String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  deletedAt            DateTime?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONTROL PLAN (pós go-live)
+// ═══════════════════════════════════════════════════════════════
+
+enum ControlFrequency {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+}
+
+enum ControlDataSource {
+  MANUAL
+  INTEGRATION
+}
+
+enum RagStatus {
+  GREEN
+  AMBER
+  RED
+}
+
+model ControlPlanItem {
+  id              String            @id @default(uuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  projectId       String
+  project         Project           @relation(fields: [projectId], references: [id])
+
+  controlName     String
+  metricMonitored String
+  frequency       ControlFrequency  @default(MONTHLY)
+  thresholdLow    Float?
+  thresholdHigh   Float?
+  ownerId         String?
+  dataSource      ControlDataSource @default(MANUAL)
+  lastMeasurement Float?
+  lastMeasuredAt  DateTime?
+  statusRag       RagStatus?
+
+  createdBy       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([deletedAt])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO FINANCEIRO — ROI das ações de GM
+// ═══════════════════════════════════════════════════════════════
+
+enum FinancialActionType {
+  COST
+  BENEFIT
+}
+
+enum FinancialCategory {
+  CONSULTING
+  LICENSE
+  INTERNAL_HOURS
+  COMMUNICATION
+  INFRASTRUCTURE
+  OPPORTUNITY_COST
+  PRODUCTIVITY_GAIN
+  TURNOVER_REDUCTION
+  REVENUE_INCREASE
+  REWORK_REDUCTION
+  OTHER
+}
+
+model FinancialAction {
+  id               String              @id @default(uuid())
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+  projectId        String
+  project          Project             @relation(fields: [projectId], references: [id])
+  changePlanItemId String?
+  changePlanItem   ChangePlanItem?     @relation(fields: [changePlanItemId], references: [id])
+
+  type             FinancialActionType
+  category         FinancialCategory
+  amount           Float
+  currency         String              @default("BRL")
+  occurredAt       DateTime
+  description      String?
+  isBudgeted       Boolean             @default(true) // false = custo/benefício realizado
+  probabilityPct   Int?                @db.SmallInt   // para risk-adjusted benefits (0-100)
+
+  createdBy        String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  deletedAt        DateTime?
+
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([changePlanItemId])
+  @@index([type])
+  @@index([deletedAt])
 }
