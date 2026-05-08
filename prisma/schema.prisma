@@ -840,6 +840,13 @@ enum AvaliacaoStatus {
   ENCERRADA
 }
 
+enum ConviteStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  OPTADO_OUT
+}
+
 model AvaliacaoCultura {
   id          String           @id @default(uuid())
   tenantId    String
@@ -852,10 +859,11 @@ model AvaliacaoCultura {
   areaId      String?
   area        Area?            @relation("AreaAvaliacoes", fields: [areaId], references: [id])
   status      AvaliacaoStatus  @default(RASCUNHO)
-  dataInicio  DateTime?
-  dataFim     DateTime?
-  createdBy   String
-  createdAt   DateTime         @default(now())
+  dataInicio   DateTime?
+  dataFim      DateTime?
+  minGroupSize Int              @default(3)
+  createdBy    String
+  createdAt    DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
 
@@ -878,7 +886,9 @@ model ConviteOcai {
   email        String
   nome         String
   token        String            @unique @default(uuid())
+  status       ConviteStatus     @default(PENDENTE)
   respondidoEm DateTime?
+  consentAt    DateTime?
   createdAt    DateTime          @default(now())
 
   resposta     RespostaOcai?
@@ -896,6 +906,8 @@ model RespostaOcai {
   // JSON: { DIM: { atual: {CLAN,ADHOCRACY,MARKET,HIERARCHY}, desejado: {...} } }
   respostas   Json
   manual      Boolean           @default(false)
+  ipHash      String?
+  userAgent   String?
   createdAt   DateTime          @default(now())
 
   @@index([avaliacaoId])

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
-import { calcularResultado, DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.utils';
+import { calcularResultado, calcularMediaGeral, DIMENSOES, TIPOS_CULTURA } from '@/modules/cultura/cultura.utils';
 import RadarChart from '@/modules/cultura/RadarChart';
 import AvaliacaoControles from './_controles';
 
@@ -29,8 +29,34 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
   });
   if (!av) notFound();
 
-  const resultado = calcularResultado(av.respostas);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  // Fetch area and company averages in parallel for radar comparison
+  const [areaRespostas, empresaRespostas] = await Promise.all([
+    av.areaId
+      ? prisma.respostaOcai.findMany({
+          where: { avaliacao: { tenantId: session.tenantId, areaId: av.areaId, deletedAt: null } },
+        })
+      : Promise.resolve([]),
+    prisma.respostaOcai.findMany({
+      where: { avaliacao: { tenantId: session.tenantId, deletedAt: null } },
+    }),
+  ]);
+
+  const minGroupSize   = av.minGroupSize ?? 3;
+  const resultado      = calcularResultado(av.respostas);
+  const suppressed     = resultado.totalRespostas > 0 && resultado.totalRespostas < minGroupSize;
+  const mediaArea      = areaRespostas.length >= minGroupSize ? calcularMediaGeral(areaRespostas) : null;
+  const mediaEmpresa   = empresaRespostas.length >= minGroupSize ? calcularMediaGeral(empresaRespostas) : null;
+  const appUrl         = process.env.NEXT_PUBLIC_APP_URL ?? '';
+
+  // Build radar series for main chart (only when not suppressed)
+  const mainSeries = !suppressed && resultado.totalRespostas > 0
+    ? [
+        { label: 'Esta pesquisa', values: resultado.geral.atual,    color: '#0f2244' },
+        { label: 'Desejado',      values: resultado.geral.desejado, color: '#c9a227', dashed: true },
+        ...(mediaArea    ? [{ label: 'Média da área',    values: mediaArea,    color: '#3b82f6' }] : []),
+        ...(mediaEmpresa ? [{ label: 'Média da empresa', values: mediaEmpresa, color: '#8b5cf6', dashed: true }] : []),
+      ]
+    : [];
 
   return (
     <div style={{ padding: '40px 48px', fontFamily: 'system-ui,-apple-system,sans-serif', maxWidth: '1100px' }}>
@@ -57,19 +83,32 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        {/* Radar geral */}
+        {/* Radar geral com comparativo */}
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#0f2244', margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <h2 style={{ fontSize: '13px', fontWeight: 600, color: '#0f2244', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Resultado Geral ({resultado.totalRespostas} resposta{resultado.totalRespostas !== 1 ? 's' : ''})
           </h2>
+          {(mediaArea || mediaEmpresa) && resultado.totalRespostas > 0 && (
+            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 14px' }}>
+              Comparando com {[mediaArea && 'média da área', mediaEmpresa && 'média da empresa'].filter(Boolean).join(' e ')}
+            </p>
+          )}
           {resultado.totalRespostas === 0 ? (
             <p style={{ color: '#94a3b8', fontSize: '13px', padding: '40px 0' }}>Aguardando respostas</p>
+          ) : suppressed ? (
+            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: '28px', marginBottom: '8px' }}>🔒</div>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#475569', margin: '0 0 4px' }}>Resultado suprimido por privacidade</p>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0 }}>
+                Mínimo de {minGroupSize} respostas para exibição ({resultado.totalRespostas}/{minGroupSize})
+              </p>
+            </div>
           ) : (
-            <RadarChart atual={resultado.geral.atual} desejado={resultado.geral.desejado} />
+            <RadarChart series={mainSeries} />
           )}
 
           {/* Scores table */}
-          {resultado.totalRespostas > 0 && (
+          {resultado.totalRespostas > 0 && !suppressed && (
             <table style={{ width: '100%', marginTop: '16px', fontSize: '12px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
@@ -77,12 +116,14 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
                   <th style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Atual</th>
                   <th style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Desejado</th>
                   <th style={{ padding: '6px 8px', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Gap</th>
+                  {mediaArea    && <th style={{ padding: '6px 8px', textAlign: 'center', color: '#3b82f6', fontWeight: 600 }}>Área</th>}
+                  {mediaEmpresa && <th style={{ padding: '6px 8px', textAlign: 'center', color: '#8b5cf6', fontWeight: 600 }}>Empresa</th>}
                 </tr>
               </thead>
               <tbody>
                 {TIPOS_CULTURA.map((t) => {
-                  const at = resultado.geral.atual[t.id];
-                  const de = resultado.geral.desejado[t.id];
+                  const at  = resultado.geral.atual[t.id];
+                  const de  = resultado.geral.desejado[t.id];
                   const gap = de - at;
                   return (
                     <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -92,6 +133,8 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
                       <td style={{ padding: '6px 8px', textAlign: 'center', color: gap > 0 ? '#15803d' : gap < 0 ? '#dc2626' : '#64748b', fontWeight: 600 }}>
                         {gap > 0 ? '+' : ''}{gap.toFixed(1)}
                       </td>
+                      {mediaArea    && <td style={{ padding: '6px 8px', textAlign: 'center', color: '#3b82f6' }}>{mediaArea[t.id].toFixed(1)}</td>}
+                      {mediaEmpresa && <td style={{ padding: '6px 8px', textAlign: 'center', color: '#8b5cf6' }}>{mediaEmpresa[t.id].toFixed(1)}</td>}
                     </tr>
                   );
                 })}
@@ -135,17 +178,17 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {c.respondidoEm ? (
                       <span style={{ fontSize: '11px', background: '#dcfce7', color: '#15803d', borderRadius: '12px', padding: '2px 8px', fontWeight: 600 }}>✓ Respondido</span>
+                    ) : c.status === 'OPTADO_OUT' ? (
+                      <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#64748b', borderRadius: '12px', padding: '2px 8px' }}>Recusou</span>
+                    ) : c.status === 'EM_ANDAMENTO' ? (
+                      <>
+                        <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1d4ed8', borderRadius: '12px', padding: '2px 8px' }}>Em andamento</span>
+                        <a href={`${appUrl}/ocai/${c.token}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}>Link</a>
+                      </>
                     ) : (
                       <>
                         <span style={{ fontSize: '11px', background: '#fef9c3', color: '#854d0e', borderRadius: '12px', padding: '2px 8px' }}>Pendente</span>
-                        <a
-                          href={`${appUrl}/ocai/${c.token}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}
-                        >
-                          Link
-                        </a>
+                        <a href={`${appUrl}/ocai/${c.token}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0f2244', textDecoration: 'none', border: '1px solid #d1d5db', borderRadius: '4px', padding: '2px 6px' }}>Link</a>
                       </>
                     )}
                   </div>
@@ -157,7 +200,7 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
       </div>
 
       {/* Por dimensão */}
-      {resultado.totalRespostas > 0 && (
+      {resultado.totalRespostas > 0 && !suppressed && (
         <div style={{ marginTop: '24px' }}>
           <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Resultado por Dimensão
@@ -166,9 +209,11 @@ export default async function AvaliacaoDetailPage({ params }: { params: Promise<
             {DIMENSOES.map((dim) => (
               <div key={dim.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
                 <RadarChart
-                  atual={resultado.media[dim.id].atual}
-                  desejado={resultado.media[dim.id].desejado}
                   titulo={dim.label}
+                  series={[
+                    { label: 'Atual',   values: resultado.media[dim.id].atual,    color: '#0f2244' },
+                    { label: 'Desejado', values: resultado.media[dim.id].desejado, color: '#c9a227', dashed: true },
+                  ]}
                 />
               </div>
             ))}

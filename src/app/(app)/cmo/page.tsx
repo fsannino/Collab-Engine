@@ -239,6 +239,7 @@ export default async function CMOPage() {
                 <Link href={`/projects/${p.id}`} style={{ fontSize: '12px', color: '#64748b', textDecoration: 'none' }}>Projeto →</Link>
                 <Link href={`/lideranca`} style={{ fontSize: '12px', color: '#64748b', textDecoration: 'none' }}>Liderança →</Link>
                 <Link href={`/training/plans`} style={{ fontSize: '12px', color: '#64748b', textDecoration: 'none' }}>Treinamentos →</Link>
+                <a href={`/api/relatorio/${p.id}`} download style={{ fontSize: '12px', color: '#c9a227', fontWeight: 600, textDecoration: 'none' }}>⬇ Relatório PDF</a>
               </div>
             </div>
           ))}

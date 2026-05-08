@@ -2,15 +2,22 @@
 
 import type { OcaiValores } from './cultura.utils';
 
-const SIZE = 260;
+const SIZE = 280;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
 const R = 100;
 
 const TIPOS = ['CLAN', 'ADHOCRACY', 'MARKET', 'HIERARCHY'] as const;
 const LABELS = ['Clã', 'Adhocracia', 'Mercado', 'Hierarquia'];
-// angles: top, right, bottom, left
 const ANGLES = [-90, 0, 90, 180];
+
+export type RadarSeries = {
+  label: string;
+  values: OcaiValores;
+  color: string;
+  dashed?: boolean;
+  strokeWidth?: number;
+};
 
 function toXY(angle: number, r: number) {
   const rad = (angle * Math.PI) / 180;
@@ -21,27 +28,36 @@ function valToR(val: number) {
   return (val / 100) * R;
 }
 
-function polygon(vals: OcaiValores) {
+function polygonPoints(vals: OcaiValores) {
   return TIPOS.map((t, i) => {
     const { x, y } = toXY(ANGLES[i]!, valToR(vals[t]));
     return `${x},${y}`;
   }).join(' ');
 }
 
+function hexToRgba(hex: string, alpha: number) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export default function RadarChart({
-  atual,
-  desejado,
+  series,
   titulo,
 }: {
-  atual: OcaiValores;
-  desejado: OcaiValores;
+  series: RadarSeries[];
   titulo?: string;
 }) {
   const gridLevels = [25, 50, 75, 100];
 
   return (
     <div style={{ textAlign: 'center' }}>
-      {titulo && <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{titulo}</p>}
+      {titulo && (
+        <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {titulo}
+        </p>
+      )}
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ overflow: 'visible' }}>
         {/* Grid circles */}
         {gridLevels.map((lvl) => (
@@ -52,25 +68,21 @@ export default function RadarChart({
           const { x, y } = toXY(ANGLES[i]!, R);
           return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#e2e8f0" strokeWidth="1" />;
         })}
-        {/* Desejado polygon */}
-        <polygon
-          points={polygon(desejado)}
-          fill="rgba(201,162,39,0.15)"
-          stroke="#c9a227"
-          strokeWidth="2"
-          strokeDasharray="5,3"
-        />
-        {/* Atual polygon */}
-        <polygon
-          points={polygon(atual)}
-          fill="rgba(15,34,68,0.12)"
-          stroke="#0f2244"
-          strokeWidth="2"
-        />
-        {/* Dots atual */}
-        {TIPOS.map((t, i) => {
-          const { x, y } = toXY(ANGLES[i]!, valToR(atual[t]));
-          return <circle key={t} cx={x} cy={y} r={4} fill="#0f2244" />;
+        {/* Series polygons (back to front) */}
+        {series.map((s, si) => (
+          <polygon
+            key={si}
+            points={polygonPoints(s.values)}
+            fill={hexToRgba(s.color, 0.08)}
+            stroke={s.color}
+            strokeWidth={s.strokeWidth ?? 2}
+            strokeDasharray={s.dashed ? '5,3' : undefined}
+          />
+        ))}
+        {/* Dots on first (primary) series */}
+        {series[0] && TIPOS.map((t, i) => {
+          const { x, y } = toXY(ANGLES[i]!, valToR(series[0]!.values[t]));
+          return <circle key={t} cx={x} cy={y} r={3.5} fill={series[0]!.color} />;
         })}
         {/* Labels */}
         {TIPOS.map((_, i) => {
@@ -82,15 +94,14 @@ export default function RadarChart({
           );
         })}
       </svg>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '8px', fontSize: '11px', color: '#64748b' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ display: 'inline-block', width: '16px', height: '2px', background: '#0f2244' }} />
-          Atual
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span style={{ display: 'inline-block', width: '16px', height: '2px', background: '#c9a227', borderTop: '2px dashed #c9a227' }} />
-          Desejado
-        </span>
+      {/* Legend */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginTop: '8px', flexWrap: 'wrap' }}>
+        {series.map((s, si) => (
+          <span key={si} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#64748b' }}>
+            <span style={{ display: 'inline-block', width: '16px', height: '2px', background: s.color, borderTop: s.dashed ? `2px dashed ${s.color}` : 'none' }} />
+            {s.label}
+          </span>
+        ))}
       </div>
     </div>
   );
