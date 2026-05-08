@@ -146,7 +146,7 @@ export default function RelatorioDocument({ data }: { data: RelatorioData }) {
     : null;
 
   return (
-    <Document title={`Relatório OCM — ${projeto.name}`} author="Collab Engine">
+    <Document title={`Relatório OCM — ${projeto.name}`} author="Collab:Evolve">
       <Page size="A4" style={s.page}>
 
         {/* ── Cover / Header ── */}
@@ -244,7 +244,7 @@ export default function RelatorioDocument({ data }: { data: RelatorioData }) {
 
         {/* Footer page 1 */}
         <View style={s.footer} fixed>
-          <Text style={s.footerTxt}>Collab Engine · CollabZ Consultoria</Text>
+          <Text style={s.footerTxt}>Collab:Evolve · CollabZ Consultoria</Text>
           <Text style={s.footerTxt} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>
@@ -381,7 +381,7 @@ export default function RelatorioDocument({ data }: { data: RelatorioData }) {
 
         {/* Footer page 2 */}
         <View style={s.footer} fixed>
-          <Text style={s.footerTxt}>Collab Engine · CollabZ Consultoria</Text>
+          <Text style={s.footerTxt}>Collab:Evolve · CollabZ Consultoria</Text>
           <Text style={s.footerTxt} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>

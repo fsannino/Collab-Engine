@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 
-export const metadata = { title: 'Gestão de Resistências — Collab Engine' }
+export const metadata = { title: 'Gestão de Resistências — Collab:Evolve' }
 
 const INTENSITY_STYLE = {
   LOW:      { bg: '#f1f5f9', color: '#475569', label: 'Baixa'    },

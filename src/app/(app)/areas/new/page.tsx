@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import AreaForm from './_form';
 
-export const metadata = { title: 'Nova Área — Collab Engine' };
+export const metadata = { title: 'Nova Área — Collab:Evolve' };
 
 export default async function NewAreaPage() {
   const session = await getSession();

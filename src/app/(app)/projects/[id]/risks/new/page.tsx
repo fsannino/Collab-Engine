@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createRiskAction } from '@/modules/risk/risk.actions'
 import Link from 'next/link'
 
-export const metadata = { title: 'Novo Risco — Collab Engine' }
+export const metadata = { title: 'Novo Risco — Collab:Evolve' }
 
 export default async function NewRiskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = await params

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { upsertAarAction as _upsertAarAction } from '@/modules/aar/aar.actions'
 
-export const metadata = { title: 'After Action Review — Collab Engine' }
+export const metadata = { title: 'After Action Review — Collab:Evolve' }
 
 const SECTION_STYLE = {
   wrapper: { marginBottom: '24px' },

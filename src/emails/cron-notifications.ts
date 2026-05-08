@@ -5,13 +5,13 @@ function fmtDate(d: Date) {
 function wrap(body: string): string {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
-<head><meta charset="UTF-8"/><title>Collab Engine</title></head>
+<head><meta charset="UTF-8"/><title>Collab:Evolve</title></head>
 <body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:32px 0;">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <tr><td style="background:#0f172a;padding:20px 32px;">
-          <span style="color:#fff;font-size:17px;font-weight:600;">Collab Engine</span>
+          <span style="color:#fff;font-size:17px;font-weight:600;">Collab:Evolve</span>
           <span style="color:#94a3b8;font-size:12px;margin-left:8px;">Treinamento</span>
         </td></tr>
         <tr><td style="padding:28px 32px;">${body}</td></tr>
@@ -33,7 +33,7 @@ export function buildOverdueTrainingEmail(params: {
   items: Array<{ treinamento: string; pendentes: number }>;
   appUrl: string;
 }): { subject: string; html: string } {
-  const subject = `[Collab Engine] Treinamentos atrasados — ${params.projectName}`;
+  const subject = `[Collab:Evolve] Treinamentos atrasados — ${params.projectName}`;
   const rows = params.items
     .map(
       (i) =>
@@ -50,7 +50,7 @@ export function buildOverdueTrainingEmail(params: {
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;margin-bottom:20px;">${rows}</table>
     <p style="margin:0;font-size:13px;color:#64748b;">
-      <a href="${params.appUrl}/training/plans" style="color:#3b82f6;text-decoration:none;">Agendar turmas no Collab Engine →</a>
+      <a href="${params.appUrl}/training/plans" style="color:#3b82f6;text-decoration:none;">Agendar turmas no Collab:Evolve →</a>
     </p>`;
 
   return { subject, html: wrap(body) };
@@ -70,7 +70,7 @@ export function buildTurmaReminderEmail(params: {
   appUrl: string;
   turmaId: string;
 }): { subject: string; html: string } {
-  const subject = `[Collab Engine] Lembrete: ${params.treinamento} amanhã`;
+  const subject = `[Collab:Evolve] Lembrete: ${params.treinamento} amanhã`;
 
   const MODALITY: Record<string, string> = {
     PRESENCIAL: 'Presencial', ONLINE: 'Online', HIBRIDO: 'Híbrido', AUTOESTUDO: 'Autoestudo',
@@ -109,7 +109,7 @@ export function buildAttendanceReminderEmail(params: {
   appUrl: string;
   turmaId: string;
 }): { subject: string; html: string } {
-  const subject = `[Collab Engine] Presença não registrada — ${params.turmaNome}`;
+  const subject = `[Collab:Evolve] Presença não registrada — ${params.turmaNome}`;
 
   const body = `
     <p style="margin:0 0 8px;font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Registro de presença pendente</p>

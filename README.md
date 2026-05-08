@@ -1,8 +1,14 @@
-# Collab Engine
+# Collab:Evolve (ex-Collab Engine)
 
 **Plataforma de orquestração de mudança organizacional**
 
-Da CollabZ Consultoria. Implementa o framework IPCO (Integrated Portfolio, Change & Operations) — unificando PMO, BPM e Change Management em um único sistema.
+Produto **Collab:Evolve** da suite **Collab:Engine** da CollabZ Consultoria. Implementa o framework IPCO (Integrated Portfolio, Change & Operations) — unificando PMO, BPM e Change Management em um único sistema.
+
+> **Nomenclatura**
+> - **Collab:Engine** — a suite (umbrella): Collab:Build + Collab:Flow + Collab:Evolve
+> - **Collab:Build** (ex-PMO / SMR Projetos) — gestão de projetos
+> - **Collab:Flow** (ex-XPROC) — gestão de processos
+> - **Collab:Evolve** (este produto, ex-Collab Engine) — gestão de mudança, treinamento, portfólio + integração entre todos
 
 ---
 
@@ -16,17 +22,17 @@ Em projetos de transformação (implantação de SAP, Fusões e Aquisições, tr
 
 A maioria das organizações usa ferramentas separadas para cada disciplina. Resultado: tecnologia entregue sem mudança comportamental, processos digitalizados ruins, treinamentos pós go-live, ROI sumido.
 
-Collab Engine integra os três num único motor, com dados compartilhados, fluxo orientado a eventos e governança transversal.
+A suite **Collab:Engine** integra os três num único motor, com dados compartilhados, fluxo orientado a eventos e governança transversal.
 
-## Como o Collab Engine se posiciona
+## Como o Collab:Evolve se posiciona
 
-A ferramenta orquestra três sistemas:
+A ferramenta orquestra três sistemas dentro da suite Collab:Engine:
 
-- **SMR Projetos** — gestão de projetos (já existente)
-- **XPROC** — gestão de processos (já existente)
-- **Collab Engine** — gestão de mudança, treinamento, portfólio + integração entre todos
+- **Collab:Build** (ex-SMR Projetos) — gestão de projetos
+- **Collab:Flow** (ex-XPROC) — gestão de processos
+- **Collab:Evolve** (este produto) — gestão de mudança, treinamento, portfólio + integração entre todos
 
-Os módulos do Collab Engine seguem numeração M1–M16:
+Os módulos do Collab:Evolve seguem numeração M1–M16:
 
 | # | Módulo | Função |
 |---|--------|--------|

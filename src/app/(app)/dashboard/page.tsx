@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { MetricCard } from './_metric-card'
 
-export const metadata = { title: 'Painel — Collab Engine' }
+export const metadata = { title: 'Painel — Collab:Evolve' }
 
 // Accent colors cycling: navy, gold, navy, gold…
 const ACCENTS = ['#0B1F3A', '#c9a227', '#0B1F3A', '#c9a227', '#0B1F3A', '#c9a227']

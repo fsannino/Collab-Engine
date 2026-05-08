@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import CargoEditForm from './_form';
 
-export const metadata = { title: 'Editar Cargo — Collab Engine' };
+export const metadata = { title: 'Editar Cargo — Collab:Evolve' };
 
 export default async function EditCargoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

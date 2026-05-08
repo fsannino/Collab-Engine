@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 
-export const metadata = { title: 'Processos — Collab Engine' };
+export const metadata = { title: 'Processos — Collab:Evolve' };
 
 export default async function ProcessosPage() {
   const session = await getSession();

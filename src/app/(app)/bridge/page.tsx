@@ -4,12 +4,12 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { ReprocessarBtn, DescartarBtn } from './_event-actions';
 
-export const metadata = { title: 'Bridge — Collab Engine' };
+export const metadata = { title: 'Bridge — Collab:Evolve' };
 
 // Refresh every 30 s via Next.js revalidation
 export const revalidate = 30;
 
-const SISTEMA_LABEL: Record<string, string> = { SMR: 'SMR Projetos', XPROC: 'XPROC', COLLAB: 'Collab Engine' };
+const SISTEMA_LABEL: Record<string, string> = { SMR: 'Collab:Build', XPROC: 'Collab:Flow', COLLAB: 'Collab:Evolve' };
 const SISTEMA_COLOR: Record<string, string> = { SMR: '#3b82f6', XPROC: '#8b5cf6', COLLAB: '#c9a227' };
 
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
@@ -98,7 +98,7 @@ export default async function BridgePage() {
             <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f2244', margin: 0 }}>Bridge</h1>
           </div>
           <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 0 14px' }}>
-            Integração cross-sistema · SMR Projetos ↔ Collab Engine ↔ XPROC
+            Integração cross-sistema · Collab:Build ↔ Collab:Evolve ↔ Collab:Flow
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>

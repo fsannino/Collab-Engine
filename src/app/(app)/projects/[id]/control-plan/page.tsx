@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { recordMeasurementAction as _recordMeasurementAction } from '@/modules/control-plan/control-plan.actions'
 
-export const metadata = { title: 'Plano de Controle — Collab Engine' }
+export const metadata = { title: 'Plano de Controle — Collab:Evolve' }
 
 const RAG_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   GREEN: { bg: '#dcfce7', color: '#166534', label: 'Verde'     },

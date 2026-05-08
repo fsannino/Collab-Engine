@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import ProcessoEditForm from './_form';
 
-export const metadata = { title: 'Editar Processo — Collab Engine' };
+export const metadata = { title: 'Editar Processo — Collab:Evolve' };
 
 export default async function EditProcessoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

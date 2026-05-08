@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import FuncaoEditForm from './_form';
 
-export const metadata = { title: 'Editar Função — Collab Engine' };
+export const metadata = { title: 'Editar Função — Collab:Evolve' };
 
 export default async function EditFuncaoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

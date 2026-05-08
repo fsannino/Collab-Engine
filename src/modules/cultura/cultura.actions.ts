@@ -10,7 +10,7 @@ import type { ActionResult } from '@/shared/types/action-result';
 import { DIMENSOES, calcularResultado } from './cultura.utils';
 import { hashIp } from '@/lib/ocai/engine';
 
-const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab Engine <noreply@collabz.com.br>';
+const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Collab:Evolve <noreply@collabz.com.br>';
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────

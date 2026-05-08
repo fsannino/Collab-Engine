@@ -3,7 +3,7 @@ import { getSession } from '@/core/auth/session'
 import { prisma } from '@/lib/prisma'
 import { NewPlanForm } from './new-plan-form'
 
-export const metadata = { title: 'Novo Plano de Treinamento — Collab Engine' }
+export const metadata = { title: 'Novo Plano de Treinamento — Collab:Evolve' }
 
 export default async function NewTrainingPlanPage() {
   const session = await getSession()

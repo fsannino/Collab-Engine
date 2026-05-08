@@ -39,7 +39,7 @@ export function buildTrainingInviteEmail(data: InviteData): { subject: string; h
         <!-- Header -->
         <tr>
           <td style="background:#0f172a;padding:24px 32px;">
-            <span style="color:#ffffff;font-size:18px;font-weight:600;letter-spacing:-0.3px;">Collab Engine</span>
+            <span style="color:#ffffff;font-size:18px;font-weight:600;letter-spacing:-0.3px;">Collab:Evolve</span>
             <span style="color:#94a3b8;font-size:13px;margin-left:8px;">Treinamento</span>
           </td>
         </tr>
@@ -108,7 +108,7 @@ export function buildTrainingInviteEmail(data: InviteData): { subject: string; h
           <td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;">
             <p style="margin:0;font-size:12px;color:#94a3b8;">
               CollabZ Consultoria &middot; Uso interno &middot;
-              <a href="${data.planUrl}" style="color:#3b82f6;text-decoration:none;">Ver plano no Collab Engine</a>
+              <a href="${data.planUrl}" style="color:#3b82f6;text-decoration:none;">Ver plano no Collab:Evolve</a>
             </p>
           </td>
         </tr>
