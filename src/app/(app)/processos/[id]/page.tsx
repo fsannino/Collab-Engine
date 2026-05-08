@@ -50,6 +50,12 @@ export default async function ProcessoDetailPage({ params }: { params: Promise<{
             {processo.xprocProcessoId && <p style={{ color: '#94a3b8', fontSize: '12px', margin: '2px 0 0' }}>XPROC ID: {processo.xprocProcessoId}</p>}
           </div>
         </div>
+        <Link
+          href={`/processos/${processo.id}/edit`}
+          style={{ padding: '9px 18px', background: 'transparent', color: '#0f2244', border: '1px solid #d1d5db', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          Editar
+        </Link>
       </div>
 
       <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 12px' }}>

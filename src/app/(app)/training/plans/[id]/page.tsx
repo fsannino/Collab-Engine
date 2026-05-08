@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { PeoplePanel } from './_people-panel';
+import { MaterialsForm } from './_materials-form';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT:     'Rascunho',
@@ -63,6 +64,10 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
             where: { deletedAt: null },
             include: { _count: { select: { inscricoes: true } } },
             orderBy: { dataInicio: 'asc' },
+          },
+          materiais: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'asc' },
           },
         },
         orderBy: { createdAt: 'asc' },
@@ -191,6 +196,12 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
                   </div>
                 )}
               </div>
+
+              {/* Materiais */}
+              <MaterialsForm
+                trainingItemId={item.id}
+                materiais={item.materiais}
+              />
             </div>
           ))}
         </div>

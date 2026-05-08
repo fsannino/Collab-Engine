@@ -4,6 +4,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { AttendanceForm } from './_attendance-form';
 import { SendInvitesButton } from './_send-invites-button';
+import { InstrutoresForm } from './_instrutores-form';
 
 const MODALITY_LABEL: Record<string, string> = {
   PRESENCIAL:  'Presencial',
@@ -56,7 +57,12 @@ export default async function TurmaDetailPage({ params }: Props) {
           },
         },
         orderBy: { createdAt: 'asc' },
-        // include conviteEnviadoEm for invite tracking
+      },
+      instrutores: {
+        include: {
+          pessoa: { select: { id: true, nome: true } },
+        },
+        orderBy: { createdAt: 'asc' },
       },
     },
   });
@@ -65,6 +71,13 @@ export default async function TurmaDetailPage({ params }: Props) {
   if (turma.trainingItem.plan.tenantId !== session.tenantId) notFound();
 
   const isConcluida = turma.status === 'CONCLUIDA';
+
+  // Fetch available pessoas for instructor selector
+  const pessoas = await prisma.pessoa.findMany({
+    where: { tenantId: session.tenantId, deletedAt: null },
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' },
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -93,6 +106,7 @@ export default async function TurmaDetailPage({ params }: Props) {
           <span>{fmt(turma.dataInicio)} – {fmt(turma.dataFim)}</span>
           {turma.local && <span>Local: {turma.local}</span>}
           {turma.capacidade && <span>Capacidade: {turma.capacidade}</span>}
+          {turma.notaLimiteAprovacao && <span>Nota mín.: {turma.notaLimiteAprovacao}</span>}
           <span>{turma.inscricoes.length} inscritos</span>
         </div>
       </div>
@@ -112,6 +126,21 @@ export default async function TurmaDetailPage({ params }: Props) {
           />
         </div>
       )}
+
+      {/* Instrutores */}
+      <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-700">
+            Instrutores
+            <span className="ml-2 font-normal text-gray-400">({turma.instrutores.length})</span>
+          </h2>
+        </div>
+        <InstrutoresForm
+          turmaId={turma.id}
+          instrutores={turma.instrutores}
+          pessoas={pessoas}
+        />
+      </section>
 
       {/* Attendance section */}
       <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -133,10 +162,12 @@ export default async function TurmaDetailPage({ params }: Props) {
               id: i.id,
               presente: i.presente,
               notaAvaliacao: i.notaAvaliacao,
+              notaExame: i.notaExame,
               observacao: i.observacao ?? '',
               pessoa: i.pessoaTreinamento.pessoa,
             }))}
             isConcluida={isConcluida}
+            notaLimiteAprovacao={turma.notaLimiteAprovacao ?? null}
           />
         )}
       </section>

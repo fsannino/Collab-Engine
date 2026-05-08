@@ -89,6 +89,33 @@ export async function deletePessoaAction(pessoaId: string): Promise<ActionResult
   return { ok: true, data: undefined };
 }
 
+export async function updatePessoaAction(id: string, raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = createPessoaSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { nome, email, cpf, hrisId, areaId, superiorId, localidadeTrabalho } = parsed.data;
+
+  await prisma.pessoa.updateMany({
+    where: { id, tenantId: session.tenantId, deletedAt: null },
+    data: {
+      nome,
+      email:              email              || null,
+      cpf:                cpf                || null,
+      hrisId:             hrisId             || null,
+      areaId:             areaId             || null,
+      superiorId:         superiorId         || null,
+      localidadeTrabalho: localidadeTrabalho || null,
+    },
+  });
+
+  revalidatePath('/people');
+  revalidatePath(`/people/${id}`);
+  return { ok: true, data: undefined };
+}
+
 // ─── Cargo ───────────────────────────────────────────────────────────────────
 
 export async function createCargoAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
@@ -110,6 +137,28 @@ export async function createCargoAction(raw: unknown): Promise<ActionResult<{ id
 
   revalidatePath('/cargos');
   return { ok: true, data: { id: cargo.id } };
+}
+
+export async function updateCargoAction(id: string, raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = createCargoSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  await prisma.cargo.updateMany({
+    where: { id, tenantId: session.tenantId, deletedAt: null },
+    data: {
+      nome:      parsed.data.nome,
+      nivel:     parsed.data.nivel     || null,
+      descricao: parsed.data.descricao || null,
+      areaId:    parsed.data.areaId    || null,
+    },
+  });
+
+  revalidatePath('/cargos');
+  revalidatePath(`/cargos/${id}`);
+  return { ok: true, data: undefined };
 }
 
 export async function deleteCargoAction(cargoId: string): Promise<ActionResult<void>> {
@@ -144,6 +193,26 @@ export async function createFuncaoAction(raw: unknown): Promise<ActionResult<{ i
 
   revalidatePath('/funcoes');
   return { ok: true, data: { id: funcao.id } };
+}
+
+export async function updateFuncaoAction(id: string, raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = createFuncaoSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  await prisma.funcao.updateMany({
+    where: { id, tenantId: session.tenantId, deletedAt: null },
+    data: {
+      nome:      parsed.data.nome,
+      descricao: parsed.data.descricao || null,
+    },
+  });
+
+  revalidatePath('/funcoes');
+  revalidatePath(`/funcoes/${id}`);
+  return { ok: true, data: undefined };
 }
 
 export async function deleteFuncaoAction(funcaoId: string): Promise<ActionResult<void>> {
@@ -192,6 +261,65 @@ export async function assignFuncaoAction(raw: unknown): Promise<ActionResult<voi
 
   await prisma.pessoaFuncao.create({ data: { pessoaId, funcaoId, dataInicio } });
   revalidatePath(`/people/${pessoaId}`);
+  return { ok: true, data: undefined };
+}
+
+// ─── FuncaoProcesso (RACI local) ─────────────────────────────────────────────
+
+const linkProcessoSchema = z.object({
+  funcaoId:   z.string().uuid(),
+  processoId: z.string().uuid(),
+  papel:      z.enum(['RESPONSIBLE', 'ACCOUNTABLE', 'CONSULTED', 'INFORMED']),
+  observacao: z.string().max(500).optional().or(z.literal('')),
+});
+
+export async function linkFuncaoProcessoAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = linkProcessoSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { funcaoId, processoId, papel, observacao } = parsed.data;
+
+  const funcao = await prisma.funcao.findFirst({
+    where: { id: funcaoId, tenantId: session.tenantId, deletedAt: null },
+  });
+  if (!funcao) return { ok: false, error: 'Função não encontrada' };
+
+  const processo = await prisma.processo.findFirst({
+    where: { id: processoId, tenantId: session.tenantId, deletedAt: null },
+  });
+  if (!processo) return { ok: false, error: 'Processo não encontrado' };
+
+  await prisma.funcaoProcesso.create({
+    data: {
+      funcaoId,
+      processoId,
+      papel,
+      observacao: observacao || null,
+    },
+  });
+
+  revalidatePath(`/funcoes/${funcaoId}`);
+  return { ok: true, data: undefined };
+}
+
+export async function unlinkFuncaoProcessoAction(id: string): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const fp = await prisma.funcaoProcesso.findFirst({
+    where: { id, deletedAt: null },
+    include: { funcao: { select: { tenantId: true, id: true } } },
+  });
+  if (!fp || fp.funcao.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Vínculo não encontrado' };
+  }
+
+  await prisma.funcaoProcesso.delete({ where: { id } });
+
+  revalidatePath(`/funcoes/${fp.funcao.id}`);
   return { ok: true, data: undefined };
 }
 

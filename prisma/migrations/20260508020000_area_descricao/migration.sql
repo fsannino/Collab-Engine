@@ -1,0 +1,1 @@
+ALTER TABLE "Area" ADD COLUMN IF NOT EXISTS "descricao" TEXT;

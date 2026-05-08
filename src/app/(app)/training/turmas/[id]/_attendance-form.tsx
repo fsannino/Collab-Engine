@@ -7,6 +7,7 @@ type Inscricao = {
   id: string;
   presente: boolean | null;
   notaAvaliacao: number | null | undefined;
+  notaExame: number | null | undefined;
   observacao: string;
   pessoa: { id: string; nome: string; email: string | null };
 };
@@ -15,14 +16,16 @@ type Props = {
   turmaId: string;
   inscricoes: Inscricao[];
   isConcluida: boolean;
+  notaLimiteAprovacao: number | null;
 };
 
-export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
+export function AttendanceForm({ turmaId, inscricoes, isConcluida, notaLimiteAprovacao }: Props) {
   const [rows, setRows] = useState(() =>
     inscricoes.map((i) => ({
       id: i.id,
       presente: i.presente,
       notaAvaliacao: i.notaAvaliacao ?? null,
+      notaExame: i.notaExame ?? null,
       observacao: i.observacao,
       pessoa: i.pessoa,
     }))
@@ -39,6 +42,10 @@ export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, notaAvaliacao: value } : r)));
   }
 
+  function setNotaExame(idx: number, value: number | null) {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, notaExame: value } : r)));
+  }
+
   function setObs(idx: number, value: string) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, observacao: value } : r)));
   }
@@ -51,6 +58,7 @@ export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
           id: r.id,
           presente: r.presente,
           notaAvaliacao: r.notaAvaliacao,
+          notaExame: r.notaExame,
           observacao: r.observacao,
         })),
       });
@@ -71,6 +79,22 @@ export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
     });
   }
 
+  function aprovacaoIndicator(notaExame: number | null) {
+    if (notaExame === null || notaLimiteAprovacao === null) return null;
+    if (notaExame >= notaLimiteAprovacao) {
+      return (
+        <span style={{ color: '#16a34a', fontSize: '12px', fontWeight: 600 }} title="Aprovado">
+          ✓ Aprovado
+        </span>
+      );
+    }
+    return (
+      <span style={{ color: '#dc2626', fontSize: '12px', fontWeight: 600 }} title="Reprovado">
+        ✗ Reprovado
+      </span>
+    );
+  }
+
   return (
     <div>
       {message && (
@@ -86,6 +110,11 @@ export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Pessoa</th>
               <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-32">Presença</th>
               <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-24">Nota (1–5)</th>
+              {notaLimiteAprovacao !== null && (
+                <th className="px-4 py-2.5 text-center text-xs font-medium text-gray-500 uppercase w-40">
+                  Nota Exame {notaLimiteAprovacao !== null ? `(mín. ${notaLimiteAprovacao})` : ''}
+                </th>
+              )}
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
             </tr>
           </thead>
@@ -139,6 +168,26 @@ export function AttendanceForm({ turmaId, inscricoes, isConcluida }: Props) {
                     ))}
                   </select>
                 </td>
+                {notaLimiteAprovacao !== null && (
+                  <td className="px-4 py-3">
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        disabled={isConcluida}
+                        value={row.notaExame ?? ''}
+                        onChange={(e) =>
+                          setNotaExame(idx, e.target.value !== '' ? Number(e.target.value) : null)
+                        }
+                        placeholder="0–100"
+                        className="border border-gray-300 rounded px-2 py-1 text-xs w-20 text-center disabled:bg-gray-50 disabled:cursor-default focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                      {aprovacaoIndicator(row.notaExame)}
+                    </div>
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   <input
                     type="text"
