@@ -5,6 +5,7 @@ import Link from 'next/link'
 export const metadata = { title: 'Dashboard — Collab Engine' }
 
 const modules = [
+  { href: '/projects', label: 'Projetos', description: 'Gestão de projetos de mudança organizacional', icon: '📋' },
   { href: '/people', label: 'Pessoas', description: 'Cadastro e gestão de colaboradores', icon: '👤' },
   { href: '/cargos', label: 'Cargos', description: 'Estrutura de cargos da organização', icon: '🏷️' },
   { href: '/funcoes', label: 'Funções', description: 'Funções e papéis nos processos', icon: '⚙️' },
