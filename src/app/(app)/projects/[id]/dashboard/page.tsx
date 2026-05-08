@@ -117,6 +117,8 @@ export default async function ProjectDashboardPage({ params }: { params: Params 
           <Link href={`/projects/${projectId}/impacts`} className="text-primary hover:underline">Impactos</Link>
           <span className="text-muted-foreground">·</span>
           <Link href={`/projects/${projectId}/stakeholders`} className="text-primary hover:underline">Partes Interessadas</Link>
+          <span className="text-muted-foreground">·</span>
+          <a href={`/api/relatorio/${projectId}`} download style={{ color: '#c9a227', fontWeight: 600 }}>⬇ Relatório PDF</a>
         </nav>
       </div>
 

@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     // server actions já é estável no Next 16
   },
   poweredByHeader: false,
+  serverExternalPackages: ['@react-pdf/renderer'],
 };
 
 export default nextConfig;
