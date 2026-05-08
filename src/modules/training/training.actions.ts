@@ -35,8 +35,27 @@ const savePresencaSchema = z.object({
     id:            z.string().uuid(),
     presente:      z.boolean().nullable(),
     notaAvaliacao: z.coerce.number().int().min(1).max(5).nullable().optional(),
+    notaExame:     z.coerce.number().min(0).max(100).nullable().optional(),
     observacao:    z.string().max(500).optional().or(z.literal('')),
   })),
+});
+
+const addInstrutorSchema = z.object({
+  turmaId:   z.string().uuid(),
+  pessoaId:  z.string().uuid(),
+  principal: z.coerce.boolean().optional(),
+});
+
+const removeInstrutorSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const addMaterialSchema = z.object({
+  trainingItemId: z.string().uuid(),
+  tipo:           z.enum(['ONLINE', 'FISICO', 'DIGITAL']),
+  titulo:         z.string().min(2).max(200),
+  url:            z.string().url().optional().or(z.literal('')),
+  descricao:      z.string().max(500).optional().or(z.literal('')),
 });
 
 const encerrarTurmaSchema = z.object({
@@ -114,17 +133,29 @@ export async function savePresencaAction(raw: unknown): Promise<ActionResult<voi
 
   const { turmaId, inscricoes } = parsed.data;
 
+  // Fetch the turma to determine notaLimiteAprovacao for computing aprovado
+  const turma = await prisma.turma.findUnique({
+    where: { id: turmaId },
+    select: { notaLimiteAprovacao: true },
+  });
+
   await prisma.$transaction(
-    inscricoes.map((i) =>
-      prisma.inscricaoTurma.update({
+    inscricoes.map((i) => {
+      const notaExame = i.notaExame ?? null;
+      const limite = turma?.notaLimiteAprovacao ?? null;
+      const aprovado =
+        notaExame !== null && limite !== null ? notaExame >= limite : null;
+      return prisma.inscricaoTurma.update({
         where: { id: i.id },
         data: {
           presente:      i.presente,
           notaAvaliacao: i.notaAvaliacao ?? null,
+          notaExame,
+          aprovado,
           observacao:    i.observacao    || null,
         },
-      })
-    )
+      });
+    })
   );
 
   revalidatePath(`/training/turmas/${turmaId}`);
@@ -378,6 +409,117 @@ export async function sendInvitationsAction(turmaId: string): Promise<ActionResu
 
   revalidatePath(`/training/turmas/${turmaId}`);
   return { ok: true, data: { sent, skipped } };
+}
+
+// ─── TurmaInstrutor ───────────────────────────────────────────────────────────
+
+export async function addTurmaInstrutorAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = addInstrutorSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { turmaId, pessoaId, principal } = parsed.data;
+
+  // Verify tenant owns the turma via trainingItem.plan.tenantId
+  const turma = await prisma.turma.findFirst({
+    where: { id: turmaId, deletedAt: null },
+    include: { trainingItem: { include: { plan: { select: { tenantId: true } } } } },
+  });
+  if (!turma || turma.trainingItem.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Turma não encontrada' };
+  }
+
+  const instrutor = await prisma.turmaInstrutor.create({
+    data: { turmaId, pessoaId, principal: principal ?? false },
+  });
+
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: { id: instrutor.id } };
+}
+
+export async function removeTurmaInstrutorAction(raw: unknown): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = removeInstrutorSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { id } = parsed.data;
+
+  const instrutor = await prisma.turmaInstrutor.findFirst({
+    where: { id },
+    include: {
+      turma: {
+        include: { trainingItem: { include: { plan: { select: { tenantId: true } } } } },
+      },
+    },
+  });
+  if (!instrutor || instrutor.turma.trainingItem.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Instrutor não encontrado' };
+  }
+
+  await prisma.turmaInstrutor.delete({ where: { id } });
+
+  revalidatePath(`/training/turmas/${instrutor.turmaId}`);
+  return { ok: true, data: undefined };
+}
+
+// ─── TrainingMaterial ─────────────────────────────────────────────────────────
+
+export async function addTrainingMaterialAction(raw: unknown): Promise<ActionResult<{ id: string }>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const parsed = addMaterialSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos' };
+
+  const { trainingItemId, tipo, titulo, url, descricao } = parsed.data;
+
+  const item = await prisma.trainingItem.findFirst({
+    where: { id: trainingItemId, deletedAt: null },
+    include: { plan: { select: { tenantId: true, id: true } } },
+  });
+  if (!item || item.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Item de treinamento não encontrado' };
+  }
+
+  const material = await prisma.trainingMaterial.create({
+    data: {
+      trainingItemId,
+      tipo,
+      titulo,
+      url:      url      || null,
+      descricao: descricao || null,
+    },
+  });
+
+  revalidatePath(`/training/plans/${item.plan.id}`);
+  return { ok: true, data: { id: material.id } };
+}
+
+export async function deleteTrainingMaterialAction(id: string): Promise<ActionResult<void>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const material = await prisma.trainingMaterial.findFirst({
+    where: { id, deletedAt: null },
+    include: {
+      trainingItem: { include: { plan: { select: { tenantId: true, id: true } } } },
+    },
+  });
+  if (!material || material.trainingItem.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Material não encontrado' };
+  }
+
+  await prisma.trainingMaterial.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+
+  revalidatePath(`/training/plans/${material.trainingItem.plan.id}`);
+  return { ok: true, data: undefined };
 }
 
 // ─── Inscrever pessoa em turma ────────────────────────────────────────────────

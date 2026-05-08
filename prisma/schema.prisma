@@ -379,11 +379,12 @@ enum PapelNoProcesso {
 // ═══════════════════════════════════════════════════════════════
 
 model Area {
-  id       String  @id @default(uuid())
-  tenantId String
-  tenant   Tenant  @relation(fields: [tenantId], references: [id])
-  nome     String
-  parentId String?
+  id        String  @id @default(uuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  nome      String
+  descricao String?
+  parentId  String?
   parent   Area?   @relation("AreaHierarchy", fields: [parentId], references: [id])
   children Area[]  @relation("AreaHierarchy")
   createdAt DateTime @default(now())

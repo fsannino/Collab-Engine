@@ -37,12 +37,20 @@ export default async function MacroprocessoDetailPage({ params }: { params: Prom
             <p style={{ color: '#94a3b8', fontSize: '12px', margin: '4px 0 0 14px' }}>XPROC ID: {mp.xprocMacroprocessoId}</p>
           )}
         </div>
-        <Link
-          href={`/processos/new?macroprocessoId=${mp.id}`}
-          style={{ padding: '9px 18px', background: '#0f2244', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}
-        >
-          + Novo Processo
-        </Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link
+            href={`/macroprocessos/${mp.id}/edit`}
+            style={{ padding: '9px 18px', background: 'transparent', color: '#0f2244', border: '1px solid #d1d5db', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}
+          >
+            Editar
+          </Link>
+          <Link
+            href={`/processos/new?macroprocessoId=${mp.id}`}
+            style={{ padding: '9px 18px', background: '#0f2244', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}
+          >
+            + Novo Processo
+          </Link>
+        </div>
       </div>
 
       <h2 style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 12px' }}>
