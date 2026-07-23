@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { AttendanceForm } from './_attendance-form';
+import { InviteButton } from './_invite-button';
 
 const MODALITY_LABEL: Record<string, string> = {
   PRESENCIAL:  'Presencial',
@@ -92,7 +93,15 @@ export default async function TurmaDetailPage({ params }: Props) {
           {turma.local && <span>Local: {turma.local}</span>}
           {turma.capacidade && <span>Capacidade: {turma.capacidade}</span>}
           <span>{turma.inscricoes.length} inscritos</span>
+          <span>
+            {turma.inscricoes.filter((i) => i.conviteEnviadoEm).length} convite(s) enviado(s)
+          </span>
         </div>
+        {!isConcluida && turma.status !== 'CANCELADA' && turma.inscricoes.length > 0 && (
+          <div className="mt-3">
+            <InviteButton turmaId={turma.id} />
+          </div>
+        )}
       </div>
 
       {/* Attendance section */}

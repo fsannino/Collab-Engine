@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { sendEmail } from '@/core/email/send';
+import { renderTrainingInvite } from '@/emails/training-invite';
 import type { ActionResult } from '@/shared/types/action-result';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -165,6 +167,97 @@ export async function encerrarTurmaAction(raw: unknown): Promise<ActionResult<vo
 
   revalidatePath(`/training/turmas/${turmaId}`);
   return { ok: true, data: undefined };
+}
+
+// ─── Convites por e-mail (Issue 024) ─────────────────────────────────────────
+
+export type SendInvitationsSummary = {
+  enviados: number;
+  semEmail: number;
+  jaEnviados: number;
+  falhas: number;
+};
+
+export async function sendInvitationsAction(
+  turmaId: string
+): Promise<ActionResult<SendInvitationsSummary>> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: 'Não autenticado' };
+
+  const turma = await prisma.turma.findFirst({
+    where: { id: turmaId, deletedAt: null },
+    include: {
+      trainingItem: {
+        select: {
+          title: true,
+          description: true,
+          plan: { select: { tenantId: true } },
+        },
+      },
+      inscricoes: {
+        include: {
+          pessoaTreinamento: {
+            include: { pessoa: { select: { nome: true, email: true } } },
+          },
+        },
+      },
+    },
+  });
+  if (!turma || turma.trainingItem.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Turma não encontrada' };
+  }
+  if (turma.status === 'CANCELADA' || turma.status === 'CONCLUIDA') {
+    return { ok: false, error: 'Turma encerrada ou cancelada — convites não podem ser enviados' };
+  }
+
+  const instrutor = turma.instrutorId
+    ? await prisma.user.findFirst({
+        where: { id: turma.instrutorId, tenantId: session.tenantId },
+        select: { name: true },
+      })
+    : null;
+
+  const summary: SendInvitationsSummary = { enviados: 0, semEmail: 0, jaEnviados: 0, falhas: 0 };
+
+  for (const inscricao of turma.inscricoes) {
+    if (inscricao.conviteEnviadoEm) {
+      summary.jaEnviados++;
+      continue;
+    }
+
+    const pessoa = inscricao.pessoaTreinamento.pessoa;
+    if (!pessoa.email) {
+      summary.semEmail++;
+      continue;
+    }
+
+    const { subject, html } = renderTrainingInvite({
+      pessoaNome: pessoa.nome,
+      treinamentoTitulo: turma.trainingItem.title,
+      turmaNome: turma.nome,
+      dataInicio: turma.dataInicio,
+      dataFim: turma.dataFim,
+      modality: turma.modality,
+      local: turma.local,
+      instrutorNome: instrutor?.name ?? null,
+      descricao: turma.trainingItem.description,
+    });
+
+    const result = await sendEmail({ to: pessoa.email, subject, html });
+    if (!result.ok) {
+      summary.falhas++;
+      continue;
+    }
+
+    await prisma.inscricaoTurma.update({
+      where: { id: inscricao.id },
+      data: { conviteEnviadoEm: new Date() },
+    });
+    summary.enviados++;
+  }
+
+  revalidatePath(`/training/turmas/${turmaId}`);
+  return { ok: true, data: summary };
 }
 
 // ─── Inscrever pessoa em turma ────────────────────────────────────────────────
