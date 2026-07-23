@@ -13,6 +13,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // Webhook HMAC secret — usado para validar eventos do SMR (Issue 007)
   WEBHOOK_SECRET: z.string().min(32).optional(),
+  // Integração XPROC (Issue 021) — vazio = integração desabilitada
+  XPROC_API_URL: z.string().optional(),
+  XPROC_API_KEY: z.string().optional(),
 })
 
 export const env = envSchema.parse(process.env)

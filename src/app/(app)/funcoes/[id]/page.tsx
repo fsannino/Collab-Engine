@@ -2,12 +2,14 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { getProcessosByIds, isXprocConfigured } from '@/integration/xproc/client';
+import { ProcessoLinkSection } from './_processo-link';
 
 const PAPEL_LABEL: Record<string, string> = {
-  RESPONSAVEL: 'Responsável',
-  APROVADOR:   'Aprovador',
-  CONSULTADO:  'Consultado',
-  INFORMADO:   'Informado',
+  RESPONSIBLE: 'Responsável',
+  ACCOUNTABLE: 'Aprovador',
+  CONSULTED:   'Consultado',
+  INFORMED:    'Informado',
 };
 
 type Props = { params: Promise<{ id: string }> };
@@ -32,6 +34,11 @@ export default async function FuncaoDetailPage({ params }: Props) {
     },
   });
   if (!funcao) notFound();
+
+  // Resolve nomes dos processos no XPROC (best-effort; falha não quebra a página)
+  const processoNomes = await getProcessosByIds(
+    funcao.processos.map((fp) => fp.xprocProcessoId)
+  ).catch(() => new Map());
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -67,31 +74,19 @@ export default async function FuncaoDetailPage({ params }: Props) {
         )}
       </section>
 
-      {/* Processos vinculados (XPROC) */}
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-gray-700">
-            Processos Vinculados (XPROC)
-            <span className="ml-2 font-normal text-gray-400">({funcao.processos.length})</span>
-          </h2>
-        </div>
-        {funcao.processos.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">
-            Nenhum processo vinculado. Integração com XPROC disponível no Sprint 4 (Issue 021).
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {funcao.processos.map((fp) => (
-              <li key={fp.id} className="flex items-center justify-between text-sm">
-                <span className="font-medium text-gray-800">Processo {fp.xprocProcessoId}</span>
-                <span className="text-xs rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
-                  {PAPEL_LABEL[fp.papel] ?? fp.papel}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* Processos vinculados (XPROC) — Issue 021 */}
+      <ProcessoLinkSection
+        funcaoId={funcao.id}
+        xprocDisponivel={isXprocConfigured()}
+        papelLabel={PAPEL_LABEL}
+        vinculos={funcao.processos.map((fp) => ({
+          id: fp.id,
+          xprocProcessoId: fp.xprocProcessoId,
+          processoNome: processoNomes.get(fp.xprocProcessoId)?.nome ?? null,
+          papel: fp.papel,
+          observacao: fp.observacao,
+        }))}
+      />
 
       <Link href="/funcoes" className="inline-block px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
         ← Voltar
