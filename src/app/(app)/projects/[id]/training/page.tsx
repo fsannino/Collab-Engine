@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { GeneratePlanButton } from './_generate-button';
 
 const PLAN_STATUS_LABEL: Record<string, string> = {
   DRAFT:     'Rascunho',
@@ -28,12 +29,15 @@ export default async function ProjectTrainingPage({ params }: Props) {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Treinamento</h1>
-        <Link
-          href={`/training/plans/new?projectId=${projectId}`}
-          className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-        >
-          + Novo Plano
-        </Link>
+        <div className="flex items-start gap-2">
+          <GeneratePlanButton projectId={projectId} />
+          <Link
+            href={`/training/plans/new?projectId=${projectId}`}
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+          >
+            + Novo Plano
+          </Link>
+        </div>
       </div>
 
       {plans.length === 0 ? (
