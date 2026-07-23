@@ -238,7 +238,7 @@ export default async function TrainingDashboardPage({ params }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {turmaRows.map(({ turma, item, total, presentes, ausentes, convites }) => (
+                {turmaRows.map(({ turma, item, total, presentes, convites }) => (
                   <tr key={turma.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <Link

@@ -19,7 +19,7 @@ type Props = {
 
 type OrphanResolution = 'CANCEL_ALL' | 'REASSIGN' | 'STANDALONE'
 
-export function CloseRiskButton({ riskId, openItemCount, closeAction }: Props) {
+export function CloseRiskButton({ riskId, closeAction }: Props) {
   const [pending, startTransition] = useTransition()
   const [orphans, setOrphans]    = useState<OrphanItem[] | null>(null)
   const [resolution, setResolution] = useState<OrphanResolution>('CANCEL_ALL')

@@ -1,5 +1,4 @@
 import { prisma } from '@/core/prisma/client';
-import { calcularResultado } from '@/modules/cultura/cultura.utils';
 import type { OcaiValores } from '@/modules/cultura/cultura.utils';
 
 export async function handleCulturalAssessmentCompleted(

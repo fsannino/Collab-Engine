@@ -55,8 +55,7 @@ describe('createImpactSchema', () => {
   });
 
   it('rejects missing projectId', () => {
-    const { projectId: _, ...rest } = valid;
-    expect(createImpactSchema.safeParse(rest).success).toBe(false);
+    expect(createImpactSchema.safeParse({ ...valid, projectId: undefined }).success).toBe(false);
   });
 
   it('rejects title shorter than 3 chars', () => {

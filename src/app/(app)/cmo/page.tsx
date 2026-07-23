@@ -3,8 +3,6 @@ import Link from 'next/link';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 
-const DIMENSOES_ADKAR = ['Awareness', 'Desire', 'Knowledge', 'Ability', 'Reinforcement'];
-
 function healthColor(score: number): string {
   if (score >= 70) return '#15803d';
   if (score >= 40) return '#d97706';

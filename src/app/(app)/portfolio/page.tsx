@@ -40,11 +40,11 @@ export default async function PortfolioDashboardPage() {
   })
 
   // Riscos por projeto — tabela pode não existir ainda (migrations pendentes)
-  const riskCountByProject = await prisma.risk.groupBy({
+  const riskCountByProject: { projectId: string; _count: { id: number } }[] = await prisma.risk.groupBy({
     by: ['projectId'],
     where: { tenantId: session.tenantId, deletedAt: null, status: { not: 'CLOSED' } },
     _count: { id: true },
-  }).catch(() => [] as { projectId: string; _count: { id: number } }[])
+  }).catch(() => [])
 
   const riskMap = new Map(riskCountByProject.map(r => [r.projectId, r._count.id]))
 
