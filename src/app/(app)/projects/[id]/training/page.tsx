@@ -30,6 +30,12 @@ export default async function ProjectTrainingPage({ params }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Treinamento</h1>
         <div className="flex items-start gap-2">
+          <Link
+            href={`/projects/${projectId}/training/dashboard`}
+            className="px-4 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-50"
+          >
+            Dashboard
+          </Link>
           <GeneratePlanButton projectId={projectId} />
           <Link
             href={`/training/plans/new?projectId=${projectId}`}
