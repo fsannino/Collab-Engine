@@ -15,17 +15,25 @@ Plataforma de orquestração de mudança organizacional da **CollabZ Consultoria
 
 O Collab Engine entrega 16 módulos numerados (M1–M16). O MVP atual cobre M2 (Stakeholder), M3 (Impacto), M5 (Treinamento) e M11 (CMO básico).
 
-## Ecossistema de três sistemas
+## Ecossistema (estratégia atualizada em 2026-07)
 
-O Collab Engine **não substitui** os sistemas existentes — ele os orquestra:
+> **Decisão estratégica:** a visão original de "3 sistemas + bridge" foi substituída pela
+> **collab-platform** (repo `fsannino/collab-platform`) — plataforma unificada de
+> Projetos + Processos + Mudança + Treinamento em Next 16 + Prisma 7 (Clean Architecture).
+> As integrações REST com SMR/XPROC estão **obsoletas** — não implementar endpoints nos legados.
 
-| Sistema | Papel no IPCO | Stack | Status |
-|---------|---------------|-------|--------|
-| **SMR Projetos** | Gestão de Projetos | Next.js 14 (upgrade pendente para 16), Prisma, NextAuth | Em produção |
-| **XPROC** | Gestão de Processos | Next.js 16, React 19, Prisma 7, jose JWT, Postgres | Em produção |
-| **Collab Engine** | Mudança + Treinamento + Portfólio + Bridge | Mesmo stack do XPROC | Construindo |
+Estado real dos sistemas:
 
-A camada de integração entre os três sistemas é o sub-domínio **`bridge`** dentro do Collab Engine (`src/integration/bridge`).
+| Sistema | Papel no IPCO | Stack real | Status |
+|---------|---------------|------------|--------|
+| **SMR Projetos** (repo PMO) | Gestão de Projetos | Next.js 14, Prisma, NextAuth — sem API v1/x-api-key | Em produção (legado) |
+| **XPROC** | Gestão de Processos | ASP clássico + SQL Server — sem API REST | Em produção (legado) |
+| **Collab Engine** | Mudança + Treinamento + Portfólio | Next 16, React 19, Prisma 7, jose | MVP entregue (Sprints 1–5) |
+| **collab-platform** | Plataforma unificada (futuro) | Next 16, Prisma 7, Clean Architecture | Construindo |
+
+O código de integração (`src/integration/bridge`, `smr`, `xproc`) é **best-effort/dormante**:
+funciona sem as APIs externas (mostra `null`/vazio) e o catálogo local de Processos
+(`Processo`/`Macroprocesso` com `xprocProcessoId` opcional) é a fonte de verdade.
 
 ## Stack tecnológico (decisões fechadas)
 
@@ -102,14 +110,15 @@ Risco, Problema e Impacto seguem o **mesmo padrão estrutural**:
 
 Leia `.claude/skills/governance-pattern/SKILL.md` antes de implementar qualquer entidade desse padrão.
 
-## Integração com SMR e XPROC
+## Integração com SMR e XPROC (obsoleta — ver Ecossistema)
 
-- **SMR API:** REST (a ser construído na migração para Next 16). Token via `x-api-key`.
-- **XPROC API:** REST v1 já existente. Token via `x-api-key`.
-- **SSO:** cookie compartilhado no domínio raiz (`.collabz.com.br`). JWT via `jose`. Os três sistemas decodificam o mesmo token.
-- **Eventos cross-sistema:** tabela `EventoIntegracao` com cron de despacho (não Redis/Bull).
+Os clientes REST (`src/integration/smr`, `src/integration/xproc`) e o bridge dashboard
+esperavam APIs v1 com `x-api-key` que **nunca existiram nos legados**. Com a decisão
+pela collab-platform, esses endpoints não serão construídos. O código permanece
+best-effort (degrada para `null`/vazio sem env vars `SMR_API_URL`/`XPROC_API_URL`) —
+não remover, não expandir.
 
-Leia `docs/INTEGRATION_GLOSSARY.md` antes de tocar em qualquer integração — termos como "Tarefa" (SMR) vs "Atividade" (XPROC) vs "Action" (Collab) precisam ser traduzidos.
+Leia `docs/INTEGRATION_GLOSSARY.md` se precisar traduzir termos históricos — "Tarefa" (SMR) vs "Atividade" (XPROC) vs "Action" (Collab).
 
 ## Roadmap em sprints
 
@@ -151,6 +160,13 @@ Cada issue do sprint atual está em `docs/issues/sprint-N/`. Pegue uma issue, re
 - **CMO** — Change Management Office (M11)
 - **Bridge** — sub-domínio de integração SMR↔XPROC↔Collab dentro do Collab Engine
 
-## Status atual do repo
+## Status atual do repo (2026-07)
 
-Repositório recém-criado. Sprint 1 começando. Nenhum módulo M1–M16 implementado ainda. Schema base do Prisma é a próxima entrega.
+Sprints 1–5 com **código 100% entregue** (produto rebatizado **Collab:Evolve**):
+Stakeholder (M2), Impacto (M3), Treinamento (M5), Cultura OCAI, Leadership Console (M7),
+bridge dashboard, relatório PDF, LMS integration, Readiness Dashboard, Context Engine.
+
+Pendências (não-código):
+- Env vars de produção: `ANTHROPIC_API_KEY` (análise IA), `RESEND_API_KEY` (convites)
+- Tutorial de uso em PT (Sprint 4) e guia do sponsor (Sprint 5)
+- Piloto CollabZ com fluxo completo (treinamento + OCAI) → declarar MVP pronto
