@@ -15,7 +15,7 @@ type Props = {
   pessoas: Pessoa[];
 };
 
-export function PeoplePanel({ trainingItemId, pessoas }: Props) {
+export function PeoplePanel({ pessoas }: Props) {
   const [list, setList] = useState(pessoas);
   const [removing, startRemove] = useTransition();
   const [error, setError] = useState<string | null>(null);

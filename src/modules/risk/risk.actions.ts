@@ -20,18 +20,6 @@ function isPrismaP0001(err: unknown): boolean {
   )
 }
 
-// Executa um UPDATE no Risk com SET LOCAL gm.skip_orphan_check = true
-// para contornar o trigger após o usuário confirmar a resolução.
-async function forceRiskStatusUpdate(
-  riskId: string,
-  data: { status?: string; deletedAt?: Date | null }
-) {
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SET LOCAL "gm.skip_orphan_check" = 'true'`
-    await tx.risk.update({ where: { id: riskId }, data: data as never })
-  })
-}
-
 // ── Schema ───────────────────────────────────────────────────────────────────
 
 const CreateRiskSchema = z.object({

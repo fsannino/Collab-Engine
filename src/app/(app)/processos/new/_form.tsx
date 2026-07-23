@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTransition, useState } from 'react';
 import { createProcessoAction } from '@/modules/processos/processos.actions';
@@ -51,7 +52,7 @@ export default function ProcessoForm({
           </select>
           {macroprocessos.length === 0 && (
             <p style={{ color: '#f59e0b', fontSize: '12px', marginTop: '4px' }}>
-              Nenhum macroprocesso cadastrado. <a href="/macroprocessos/new" style={{ color: '#0f2244' }}>Cadastrar agora</a>
+              Nenhum macroprocesso cadastrado. <Link href="/macroprocessos/new" style={{ color: '#0f2244' }}>Cadastrar agora</Link>
             </p>
           )}
         </div>
