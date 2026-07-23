@@ -105,6 +105,13 @@ export async function createTurmaAction(raw: unknown): Promise<ActionResult<{ id
 
   const { trainingItemId, nome, dataInicio, dataFim, modality, local, capacidade, notaLimiteAprovacao } = parsed.data;
 
+  // Verify tenant ownership
+  const item = await prisma.trainingItem.findFirst({
+    where: { id: trainingItemId, deletedAt: null },
+    include: { plan: { select: { tenantId: true, id: true } } },
+  });
+  if (!item || item.plan.tenantId !== session.tenantId) return { ok: false, error: 'Não encontrado' };
+
   const turma = await prisma.turma.create({
     data: {
       trainingItemId,
@@ -119,6 +126,7 @@ export async function createTurmaAction(raw: unknown): Promise<ActionResult<{ id
   });
 
   revalidatePath(`/training/turmas/${turma.id}`);
+  revalidatePath(`/training/plans/${item.plan.id}`);
   return { ok: true, data: { id: turma.id } };
 }
 
@@ -530,6 +538,29 @@ export async function inscreverPessoaAction(
 ): Promise<ActionResult<void>> {
   const session = await getSession();
   if (!session) return { ok: false, error: 'Não autenticado' };
+
+  // Verify tenant ownership e que a pessoa pertence ao mesmo item da turma
+  const turma = await prisma.turma.findFirst({
+    where: { id: turmaId, deletedAt: null },
+    include: { trainingItem: { include: { plan: { select: { tenantId: true } } } } },
+  });
+  if (!turma || turma.trainingItem.plan.tenantId !== session.tenantId) {
+    return { ok: false, error: 'Não encontrado' };
+  }
+
+  const pt = await prisma.pessoaTreinamento.findFirst({
+    where: { id: pessoaTreinamentoId, deletedAt: null },
+    select: { trainingItemId: true },
+  });
+  if (!pt || pt.trainingItemId !== turma.trainingItemId) {
+    return { ok: false, error: 'Pessoa não pertence a este item de treinamento' };
+  }
+
+  const jaInscrito = await prisma.inscricaoTurma.findFirst({
+    where: { turmaId, pessoaTreinamentoId },
+    select: { id: true },
+  });
+  if (jaInscrito) return { ok: false, error: 'Pessoa já inscrita nesta turma' };
 
   await prisma.inscricaoTurma.create({
     data: { turmaId, pessoaTreinamentoId },

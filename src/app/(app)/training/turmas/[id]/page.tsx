@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { AttendanceForm } from './_attendance-form';
 import { SendInvitesButton } from './_send-invites-button';
 import { InstrutoresForm } from './_instrutores-form';
+import { EnrollPanel } from './_enroll-panel';
 
 const MODALITY_LABEL: Record<string, string> = {
   PRESENCIAL:  'Presencial',
@@ -79,6 +80,20 @@ export default async function TurmaDetailPage({ params }: Props) {
     orderBy: { nome: 'asc' },
   });
 
+  // Pessoas designadas ao item que ainda não estão inscritas nesta turma
+  const inscritosPtIds = turma.inscricoes.map((i) => i.pessoaTreinamentoId);
+  const candidatos = isConcluida
+    ? []
+    : await prisma.pessoaTreinamento.findMany({
+        where: {
+          trainingItemId: turma.trainingItemId,
+          deletedAt: null,
+          id: { notIn: inscritosPtIds },
+        },
+        include: { pessoa: { select: { nome: true, email: true } } },
+        orderBy: { pessoa: { nome: 'asc' } },
+      });
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -141,6 +156,29 @@ export default async function TurmaDetailPage({ params }: Props) {
           pessoas={pessoas}
         />
       </section>
+
+      {/* Inscrições */}
+      {!isConcluida && (
+        <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-sm font-semibold text-gray-700">
+              Inscrever pessoas
+              <span className="ml-2 font-normal text-gray-400">({candidatos.length} disponíveis)</span>
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Pessoas designadas ao item de treinamento que ainda não estão nesta turma.
+            </p>
+          </div>
+          <EnrollPanel
+            turmaId={turma.id}
+            candidatos={candidatos.map((c) => ({
+              ptId:  c.id,
+              nome:  c.pessoa.nome,
+              email: c.pessoa.email,
+            }))}
+          />
+        </section>
+      )}
 
       {/* Attendance section */}
       <section className="rounded-lg border border-gray-200 bg-white overflow-hidden">

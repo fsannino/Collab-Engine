@@ -4,6 +4,7 @@ import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
 import { PeoplePanel } from './_people-panel';
 import { MaterialsForm } from './_materials-form';
+import { TurmaForm } from './_turma-form';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT:     'Rascunho',
@@ -75,6 +76,13 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
     },
   });
   if (!plan) notFound();
+
+  // Pessoas do tenant para designação manual
+  const todasPessoas = await prisma.pessoa.findMany({
+    where: { tenantId: session.tenantId, deletedAt: null },
+    select: { id: true, nome: true },
+    orderBy: { nome: 'asc' },
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -160,6 +168,9 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
                     email:             p.pessoa.email,
                     derivedFromFuncao: p.derivedFromFuncao,
                   }))}
+                  disponiveis={todasPessoas.filter(
+                    (tp) => !item.pessoas.some((p) => p.pessoa.id === tp.id)
+                  )}
                 />
               </div>
 
@@ -195,6 +206,9 @@ export default async function TrainingPlanDetailPage({ params }: Props) {
                     ))}
                   </div>
                 )}
+                <div className="mt-2">
+                  <TurmaForm trainingItemId={item.id} defaultModality={item.modality} />
+                </div>
               </div>
 
               {/* Materiais */}
