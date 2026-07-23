@@ -19,7 +19,7 @@ const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 export async function sendEmail({ to, subject, html }: SendEmailInput): Promise<SendEmailResult> {
   if (!resend) {
-    console.info(`[email:dev] to=${to} subject="${subject}" (RESEND_API_KEY ausente — não enviado)`);
+    console.warn(`[email:dev] to=${to} subject="${subject}" (RESEND_API_KEY ausente — não enviado)`);
     return { ok: true };
   }
 

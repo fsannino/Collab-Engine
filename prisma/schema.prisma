@@ -201,18 +201,18 @@ enum StakeholderPosition {
 }
 
 model Stakeholder {
-  id                String             @id @default(uuid())
+  id                String            @id @default(uuid())
   tenantId          String
-  tenant            Tenant             @relation(fields: [tenantId], references: [id])
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
   name              String
   email             String?
   hrisId            String?
   position          String?
   organizationLevel StakeholderLevel?
   pessoaId          String?
-  pessoa            Pessoa?            @relation(fields: [pessoaId], references: [id])
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  pessoa            Pessoa?           @relation(fields: [pessoaId], references: [id])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
 
   projectLinks ProjectStakeholder[]
@@ -222,24 +222,24 @@ model Stakeholder {
 }
 
 model ProjectStakeholder {
-  id            String              @id @default(uuid())
-  projectId     String
-  project       Project             @relation(fields: [projectId], references: [id])
-  stakeholderId String
-  stakeholder   Stakeholder         @relation(fields: [stakeholderId], references: [id])
-  position      StakeholderPosition
-  influence     Int                 @db.SmallInt
-  interest      Int                 @db.SmallInt
-  notes             String?
-  lastContactDate   DateTime?
-  adkarA            Int?     @db.SmallInt
-  adkarD            Int?     @db.SmallInt
-  adkarK            Int?     @db.SmallInt
-  adkarAb           Int?     @db.SmallInt
-  adkarR            Int?     @db.SmallInt
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  deletedAt         DateTime?
+  id              String              @id @default(uuid())
+  projectId       String
+  project         Project             @relation(fields: [projectId], references: [id])
+  stakeholderId   String
+  stakeholder     Stakeholder         @relation(fields: [stakeholderId], references: [id])
+  position        StakeholderPosition
+  influence       Int                 @db.SmallInt
+  interest        Int                 @db.SmallInt
+  notes           String?
+  lastContactDate DateTime?
+  adkarA          Int?                @db.SmallInt
+  adkarD          Int?                @db.SmallInt
+  adkarK          Int?                @db.SmallInt
+  adkarAb         Int?                @db.SmallInt
+  adkarR          Int?                @db.SmallInt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
 
   @@unique([projectId, stakeholderId])
   @@index([projectId])
@@ -253,14 +253,14 @@ model ProjectStakeholder {
 // ═══════════════════════════════════════════════════════════════
 
 model Pessoa {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   tenantId  String
   nome      String
   email     String?
   cpf       String?
   hrisId    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   cargosHistorico PessoaCargo[]
@@ -274,13 +274,13 @@ model Pessoa {
 }
 
 model Cargo {
-  id        String      @id @default(uuid())
+  id        String    @id @default(uuid())
   tenantId  String
-  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
   nome      String
   nivel     String?
   descricao String?
-  createdAt DateTime    @default(now())
+  createdAt DateTime  @default(now())
   deletedAt DateTime?
 
   pessoas PessoaCargo[]
@@ -304,17 +304,17 @@ model PessoaCargo {
 }
 
 model Funcao {
-  id        String         @id @default(uuid())
+  id        String    @id @default(uuid())
   tenantId  String
-  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
   nome      String
   descricao String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  pessoas     PessoaFuncao[]
-  processos   FuncaoProcesso[]
+  pessoas      PessoaFuncao[]
+  processos    FuncaoProcesso[]
   treinamentos FuncaoTreinamento[]
 
   @@unique([tenantId, nome])
@@ -361,15 +361,15 @@ enum PapelNoProcesso {
 // ═══════════════════════════════════════════════════════════════
 
 model Area {
-  id       String  @id @default(uuid())
-  tenantId String
-  tenant   Tenant  @relation(fields: [tenantId], references: [id])
-  nome     String
-  parentId String?
-  parent   Area?   @relation("AreaHierarchy", fields: [parentId], references: [id])
-  children Area[]  @relation("AreaHierarchy")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  nome      String
+  parentId  String?
+  parent    Area?     @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children  Area[]    @relation("AreaHierarchy")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
   impactAreas ImpactArea[]
@@ -428,9 +428,9 @@ model ChangeImpact {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  activities       ImpactActivity[]
-  areas            ImpactArea[]
-  acompanhamentos  ImpactAcompanhamento[]
+  activities      ImpactActivity[]
+  areas           ImpactArea[]
+  acompanhamentos ImpactAcompanhamento[]
 
   @@index([tenantId])
   @@index([projectId])
@@ -491,26 +491,26 @@ model ImpactAcompanhamento {
 // ═══════════════════════════════════════════════════════════════
 
 model TrainingPlan {
-  id          String             @id @default(uuid())
-  tenantId    String
-  tenant      Tenant             @relation(fields: [tenantId], references: [id])
-  projectId   String
-  project     Project            @relation(fields: [projectId], references: [id])
+  id        String  @id @default(uuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
 
   name        String
   description String?
   status      TrainingPlanStatus @default(DRAFT)
 
-  startDate   DateTime?
-  endDate     DateTime?
+  startDate DateTime?
+  endDate   DateTime?
 
-  items       TrainingItem[]
+  items TrainingItem[]
 
-  createdBy   String             // userId
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  deletedAt   DateTime?
-  deletedBy   String?
+  createdBy String // userId
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  deletedBy String?
 
   @@index([tenantId])
   @@index([projectId])
@@ -527,22 +527,22 @@ enum TrainingPlanStatus {
 }
 
 model TrainingItem {
-  id          String     @id @default(uuid())
-  planId      String
-  plan        TrainingPlan @relation(fields: [planId], references: [id])
+  id     String       @id @default(uuid())
+  planId String
+  plan   TrainingPlan @relation(fields: [planId], references: [id])
 
   title       String
   description String?
-  duration    Int?       // minutos
+  duration    Int? // minutos
   modality    Modality
 
-  funcoes     FuncaoTreinamento[]
-  pessoas     PessoaTreinamento[]
-  turmas      Turma[]
+  funcoes FuncaoTreinamento[]
+  pessoas PessoaTreinamento[]
+  turmas  Turma[]
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([planId])
   @@index([deletedAt])
@@ -562,27 +562,27 @@ model FuncaoTreinamento {
   funcaoId       String
   funcao         Funcao       @relation(fields: [funcaoId], references: [id])
 
-  obrigatorio    Boolean      @default(true)
-  createdAt      DateTime     @default(now())
+  obrigatorio Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   @@unique([trainingItemId, funcaoId])
 }
 
 model PessoaTreinamento {
-  id             String         @id @default(uuid())
+  id             String       @id @default(uuid())
   trainingItemId String
-  trainingItem   TrainingItem   @relation(fields: [trainingItemId], references: [id])
+  trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
   pessoaId       String
-  pessoa         Pessoa         @relation(fields: [pessoaId], references: [id])
+  pessoa         Pessoa       @relation(fields: [pessoaId], references: [id])
 
-  derivedFromFuncao Boolean       @default(true)
+  derivedFromFuncao Boolean        @default(true)
   status            TrainingStatus @default(PENDENTE)
 
-  inscricoes     InscricaoTurma[]
+  inscricoes InscricaoTurma[]
 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  deletedAt      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@unique([trainingItemId, pessoaId])
   @@index([deletedAt])
@@ -602,20 +602,20 @@ model Turma {
   trainingItemId String
   trainingItem   TrainingItem @relation(fields: [trainingItemId], references: [id])
 
-  nome       String
-  dataInicio DateTime
-  dataFim    DateTime
-  modality   Modality
-  local      String?
-  instrutorId String?      // userId
+  nome        String
+  dataInicio  DateTime
+  dataFim     DateTime
+  modality    Modality
+  local       String?
+  instrutorId String? // userId
   capacidade  Int?
-  status      TurmaStatus  @default(AGENDADA)
+  status      TurmaStatus @default(AGENDADA)
 
-  inscricoes  InscricaoTurma[]
+  inscricoes InscricaoTurma[]
 
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  deletedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   @@index([trainingItemId])
   @@index([status])
@@ -637,16 +637,47 @@ model InscricaoTurma {
   pessoaTreinamentoId String
   pessoaTreinamento   PessoaTreinamento @relation(fields: [pessoaTreinamentoId], references: [id])
 
-  presente        Boolean?  // null = não marcado; true = presente; false = ausente
-  notaAvaliacao   Int?      @db.SmallInt // 1-5
-  observacao      String?
+  presente         Boolean? // null = não marcado; true = presente; false = ausente
+  notaAvaliacao    Int?      @db.SmallInt // 1-5
+  observacao       String?
   conviteEnviadoEm DateTime?
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([turmaId, pessoaTreinamentoId])
   @@index([turmaId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATION LOG (Issue 027 — notificações automatizadas)
+// ═══════════════════════════════════════════════════════════════
+
+model NotificationLog {
+  id        String                 @id @default(uuid())
+  tenantId  String?
+  type      NotificationType
+  recipient String
+  subject   String
+  refId     String? // id da entidade relacionada (turmaId, planId, …)
+  status    NotificationSendStatus @default(SENT)
+  error     String?
+  createdAt DateTime               @default(now())
+
+  @@index([type, refId, createdAt])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  TRAINING_ATRASADO_COORDENADOR // designados +30d sem turma → coordenador
+  TURMA_LEMBRETE_AMANHA // turma amanhã → inscritos e instrutor
+  PRESENCA_PENDENTE_INSTRUTOR // turma terminou ontem sem presença marcada → instrutor
+}
+
+enum NotificationSendStatus {
+  SENT
+  FAILED
 }
 
 // ═══════════════════════════════════════════════════════════════

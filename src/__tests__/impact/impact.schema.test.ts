@@ -55,7 +55,7 @@ describe('createImpactSchema', () => {
   });
 
   it('rejects missing projectId', () => {
-    const { projectId: _, ...rest } = valid;
+    const rest = { ...valid, projectId: undefined };
     expect(createImpactSchema.safeParse(rest).success).toBe(false);
   });
 
