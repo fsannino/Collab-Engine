@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/core/auth/session';
 import { prisma } from '@/lib/prisma';
+import { isXprocConfigured } from '@/integration/xproc/client';
+import { SyncXprocButton } from './_sync-xproc-button';
 
 export const metadata = { title: 'Processos — Collab:Evolve' };
 
@@ -28,9 +30,12 @@ export default async function ProcessosPage() {
             <p style={{ color: '#64748b', fontSize: '13px', margin: '2px 0 0' }}>{processos.length} cadastrado{processos.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <Link href="/processos/new" style={{ padding: '9px 18px', background: '#0f2244', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600 }}>
-          + Novo Processo
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isXprocConfigured() && <SyncXprocButton />}
+          <Link href="/processos/new" style={{ padding: '9px 18px', background: '#0f2244', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '13px', fontWeight: 600 }}>
+            + Novo Processo
+          </Link>
+        </div>
       </div>
 
       {processos.length === 0 ? (
